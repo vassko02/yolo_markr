@@ -6,7 +6,7 @@ from tkinter import filedialog, simpledialog
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-from config.config import DRAW_MODE_RECT, DRAW_MODE_POLY, COLOR_PALETTE
+from config.config import DRAW_MODE_RECT, DRAW_MODE_POLY, COLOR_PALETTE, THEMES
 from data.storage_manager import StorageManager
 from ui.canvas_manager import CanvasManager
 from ui.layout_manager import LayoutManager
@@ -14,14 +14,16 @@ from ui.layout_manager import LayoutManager
 class YoloAnnotatorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("YOLO Markr - YOLO Annotation Tool")
+        self.root.title("YOLO Real-time Unified Annotator")
         self.root.geometry("1420x900")
-        self.root.configure(bg="#1e1e24")
+        
+        # Theme configuration state
+        self.current_theme = "dark"
+        self.root.configure(bg=THEMES[self.current_theme]["bg_main"])
 
         self.style = ttk.Style()
         self.style.theme_use("clam")
-        self.style.configure("Dark.TRadiobutton", background="#1e1e24", foreground="#ffffff", font=("Segoe UI", 10, "bold"), padding=6)
-        self.style.map("Dark.TRadiobutton", background=[("selected", "#2a2a35"), ("active", "#2a2a35")], foreground=[("selected", "#007bff")])
+        self.update_ttk_styles()
 
         self.storage = StorageManager()
         self.canvas_mgr = None
@@ -37,6 +39,7 @@ class YoloAnnotatorApp:
         self.annotations = []
         self.current_poly_points = []
 
+        # Interaction states
         self.start_x = None
         self.start_y = None
         self.current_rect_id = None
@@ -46,12 +49,14 @@ class YoloAnnotatorApp:
         self.drag_start_img_x = 0
         self.drag_start_img_y = 0
 
+        # Build user interface via Layout Manager
         self.layout_mgr = LayoutManager(self.root, self)
         self.layout_mgr.build_ui()
 
         self.canvas_mgr = CanvasManager(self.canvas)
         self.update_class_listbox()
 
+        # Event bindings
         self.root.bind("<Delete>", self.delete_selected_annotation)
         self.root.bind("<Key>", self.on_key_press)
         self.file_listbox.bind("<<ListboxSelect>>", self.on_file_select)
@@ -62,6 +67,33 @@ class YoloAnnotatorApp:
         self.canvas.bind("<ButtonRelease-1>", self.on_mouse_release)
         self.canvas.bind("<Double-Button-1>", self.finish_polygon)
         self.txt_display.bind("<KeyRelease>", self.on_txt_modified)
+
+    def update_ttk_styles(self):
+        """Syncs the TTK Radiobutton element themes with the current skin."""
+        c = THEMES[self.current_theme]
+        self.style.configure("Dark.TRadiobutton", 
+                             background=c["bg_main"], 
+                             foreground=c["fg_label"], 
+                             font=("Segoe UI", 10, "bold"),
+                             padding=6)
+        self.style.map("Dark.TRadiobutton",
+                       background=[("selected", c["btn_nav_active"]), ("active", c["btn_nav_active"])],
+                       foreground=[("selected", "#007bff"), ("active", c["fg_label"])])
+
+    def toggle_theme(self):
+        """Swaps app styles cleanly between light and dark modes instantly."""
+        self.current_theme = "light" if self.current_theme == "dark" else "dark"
+        
+        # Apply core root window background
+        self.root.configure(bg=THEMES[self.current_theme]["bg_main"])
+        
+        # Sync TTK components and standard widgets
+        self.update_ttk_styles()
+        self.layout_mgr.refresh_theme_styles()
+        
+        # Redraw canvas context elements to ensure perfect canvas rendering sync
+        if self.canvas_mgr and self.orig_image:
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx)
 
     def change_mode(self):
         self.draw_mode = self.mode_var.get()
