@@ -1,7 +1,6 @@
 """Module handling the visual layout and widget definitions for the YOLO Annotator."""
 
 import tkinter as tk
-from tkinter import ttk
 from config.config import THEMES
 
 class LayoutManager:
@@ -50,11 +49,35 @@ class LayoutManager:
         self.app.mode_frame = tk.Frame(self.app.center_panel, bg=c["bg_main"], pady=5)
         self.app.mode_frame.pack(fill=tk.X)
         
-        # Modernized TTK radio buttons
+        # --- MODERN TOGGLE BUTTONS (Körök nélkül) ---
         from config.config import DRAW_MODE_RECT, DRAW_MODE_POLY, MODE_BATCH_DEL
-        ttk.Radiobutton(self.app.mode_frame, text="Rectangle Mode", variable=self.app.mode_var, value=DRAW_MODE_RECT, command=self.app.change_mode, style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(self.app.mode_frame, text="Polygon Mode", variable=self.app.mode_var, value=DRAW_MODE_POLY, command=self.app.change_mode, style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(self.app.mode_frame, text="🗑️ Batch Delete", variable=self.app.mode_var, value=MODE_BATCH_DEL, command=self.app.change_mode, style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=5)
+        
+        # Alap stílus a választó gombokhoz
+        toggle_style = {
+            "variable": self.app.mode_var,
+            "command": self.app.change_mode,
+            "indicatoron": False,      # <--- EZ ELTÜNTETI A KIS KÖRT!
+            "bd": 0,
+            "padx": 12,
+            "pady": 6,
+            "font": ("Segoe UI", 9, "bold"),
+            "cursor": "hand2",
+            "relief": tk.FLAT,
+            "overrelief": tk.FLAT
+        }
+
+        # Három darab gomb létrehozása saját referenciával, hogy a témaváltást kezelni tudjuk
+        self.btn_rect = tk.Radiobutton(self.app.mode_frame, text="Rectangle Mode", value=DRAW_MODE_RECT,
+                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#007bff", activebackground="#007bff", activeforeground="white", **toggle_style)
+        self.btn_rect.pack(side=tk.LEFT, padx=3)
+
+        self.btn_poly = tk.Radiobutton(self.app.mode_frame, text="Polygon Mode", value=DRAW_MODE_POLY,
+                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#28a745", activebackground="#28a745", activeforeground="white", **toggle_style)
+        self.btn_poly.pack(side=tk.LEFT, padx=3)
+
+        self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="🗑️ Batch Delete", value=MODE_BATCH_DEL,
+                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
+        self.btn_batch.pack(side=tk.LEFT, padx=3)
         
         self.lbl_hint = tk.Label(self.app.mode_frame, text="|  💡 Tip: Click over a shape to drag or resize instantly!", bg=c["bg_main"], fg="#ffc107", font=("Segoe UI", 9, "italic"))
         self.lbl_hint.pack(side=tk.LEFT, padx=10)
@@ -125,6 +148,11 @@ class LayoutManager:
         self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
+
+        # Dynamic updates for the mode toggle buttons
+        self.btn_rect.configure(bg=c["btn_nav"], fg=c["fg_label"])
+        self.btn_poly.configure(bg=c["btn_nav"], fg=c["fg_label"])
+        self.btn_batch.configure(bg=c["btn_nav"], fg=c["fg_label"])
 
         # Navigation & Theme Buttons
         self.btn_theme.configure(bg=c["btn_nav"], fg=c["fg_label"], activebackground=c["btn_nav_active"])

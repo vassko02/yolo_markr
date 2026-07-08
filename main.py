@@ -14,7 +14,7 @@ from ui.layout_manager import LayoutManager
 class YoloAnnotatorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("YOLO Real-time Unified Annotator")
+        self.root.title("YOLO Markr - YOLO Annotation Tool")
         self.root.geometry("1420x900")
         
         # Theme configuration state
@@ -48,7 +48,9 @@ class YoloAnnotatorApp:
         self.active_handle = None
         self.drag_start_img_x = 0
         self.drag_start_img_y = 0
-
+        self.root.minsize(1250, 800)  
+        self.root.maxsize(1920, 1080) 
+        
         # Build user interface via Layout Manager
         self.layout_mgr = LayoutManager(self.root, self)
         self.layout_mgr.build_ui()
