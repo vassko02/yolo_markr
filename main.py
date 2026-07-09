@@ -332,7 +332,7 @@ class YoloAnnotatorApp:
 
         if self.draw_mode == MODE_BATCH_DEL:
             self.start_x, self.start_y = event.x, event.y
-            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="#dc3545", dash=(4, 4), width=2)
+            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="#dc3545", dash=(4, 4), width=2,tags="ann")
             return
 
         if self.selected_ann_idx is not None:
@@ -359,7 +359,7 @@ class YoloAnnotatorApp:
         if self.draw_mode == DRAW_MODE_RECT:
             self.start_x, self.start_y = event.x, event.y
             color = COLOR_PALETTE[self.current_class_idx % len(COLOR_PALETTE)]
-            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline=color, width=2)
+            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline=color, width=2, tags="ann")
         elif self.draw_mode == DRAW_MODE_POLY:
             self.current_poly_points.append((img_x, img_y))
             
