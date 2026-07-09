@@ -1,6 +1,7 @@
 """Module handling the visual layout and widget definitions for the YOLO Annotator."""
 
 import tkinter as tk
+from tkinter import ttk
 from config.config import THEMES
 
 class LayoutManager:
@@ -15,7 +16,7 @@ class LayoutManager:
         # Get active theme colors
         c = THEMES[self.app.current_theme]
 
-        # --- LEFT PANEL (File List & Navigation) ---
+        # --- LEFT PANEL (File List, Filtering & Navigation) ---
         self.app.left_panel = tk.Frame(self.root, width=280, bg=c["bg_panel"], padx=10, pady=10)
         self.app.left_panel.pack(side=tk.LEFT, fill=tk.Y)
         self.app.left_panel.pack_propagate(False)
@@ -33,10 +34,25 @@ class LayoutManager:
                                pady=8, relief=tk.FLAT)
         btn_folder.pack(fill=tk.X, pady=(0, 10))
         
+        # --- NEW: SEARCH & STATUS FILTER SECTION ---
+        filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
+        filter_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        tk.Label(filter_frame, text="Search:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"]).grid(row=0, column=0, sticky=tk.W)
+        self.app.ent_search = tk.Entry(filter_frame, bg=c["bg_main"], fg=c["fg_label"], bd=0, highlightthickness=1, highlightbackground=c["border"], font=("Segoe UI", 9))
+        self.app.ent_search.grid(row=0, column=1, sticky=tk.EW, padx=(5, 0))
+        
+        tk.Label(filter_frame, text="Status:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"]).grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.app.cmb_filter = ttk.Combobox(filter_frame, values=["All", "Labeled (✔)", "Unlabeled"], state="readonly", font=("Segoe UI", 9), width=15)
+        self.app.cmb_filter.current(0)
+        self.app.cmb_filter.grid(row=1, column=1, sticky=tk.EW, padx=(5, 0), pady=5)
+        
+        filter_frame.columnconfigure(1, weight=1)
+        
         self.app.lbl_file_count = tk.Label(self.app.left_panel, text="Images: 0/0", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold"))
-        self.app.lbl_file_count.pack(fill=tk.X, pady=5)
+        self.app.lbl_file_count.pack(fill=tk.X, pady=2)
 
-        self.app.file_listbox = tk.Listbox(self.app.left_panel, height=25, bg=c["bg_main"], fg=c["fg_label"], 
+        self.app.file_listbox = tk.Listbox(self.app.left_panel, height=20, bg=c["bg_main"], fg=c["fg_label"], 
                                            selectbackground="#007bff", selectforeground="white",
                                            bd=0, highlightthickness=1, highlightbackground=c["border"],
                                            font=("Segoe UI", 9), activestyle="none")
@@ -49,14 +65,13 @@ class LayoutManager:
         self.app.mode_frame = tk.Frame(self.app.center_panel, bg=c["bg_main"], pady=5)
         self.app.mode_frame.pack(fill=tk.X)
         
-        # --- MODERN TOGGLE BUTTONS (Körök nélkül) ---
+        # --- MODERN TOGGLE BUTTONS ---
         from config.config import DRAW_MODE_RECT, DRAW_MODE_POLY, MODE_BATCH_DEL
         
-        # Alap stílus a választó gombokhoz
         toggle_style = {
             "variable": self.app.mode_var,
             "command": self.app.change_mode,
-            "indicatoron": False,      # <--- EZ ELTÜNTETI A KIS KÖRT!
+            "indicatoron": False,
             "bd": 0,
             "padx": 12,
             "pady": 6,
@@ -66,7 +81,6 @@ class LayoutManager:
             "overrelief": tk.FLAT
         }
 
-        # Három darab gomb létrehozása saját referenciával, hogy a témaváltást kezelni tudjuk
         self.btn_rect = tk.Radiobutton(self.app.mode_frame, text="Rectangle Mode", value=DRAW_MODE_RECT,
                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#007bff", activebackground="#007bff", activeforeground="white", **toggle_style)
         self.btn_rect.pack(side=tk.LEFT, padx=3)
@@ -79,7 +93,8 @@ class LayoutManager:
                                         bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
         self.btn_batch.pack(side=tk.LEFT, padx=3)
         
-        self.lbl_hint = tk.Label(self.app.mode_frame, text="|  💡 Tip: Click over a shape to drag or resize instantly!", bg=c["bg_main"], fg="#ffc107", font=("Segoe UI", 9, "italic"))
+        # Updated hint string reflecting shortcuts
+        self.lbl_hint = tk.Label(self.app.mode_frame, text="| Ctrl+Scroll: Zoom | Middle Mouse/Grip: Pan | Ctrl+C/V: Duplicate", bg=c["bg_main"], fg="#ffc107", font=("Segoe UI", 9, "italic"))
         self.lbl_hint.pack(side=tk.LEFT, padx=10)
 
         self.app.canvas = tk.Canvas(self.app.center_panel, bg=c["bg_canvas"], highlightthickness=1, highlightbackground=c["border"])
@@ -143,11 +158,12 @@ class LayoutManager:
         self.lbl_labels_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
         self.lbl_txt_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
 
-        # Lists & Editors
+        # Lists, Inputs & Editors
         self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
+        self.app.ent_search.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
 
         # Dynamic updates for the mode toggle buttons
         self.btn_rect.configure(bg=c["btn_nav"], fg=c["fg_label"])
