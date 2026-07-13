@@ -13,15 +13,12 @@ class LayoutManager:
 
     def build_ui(self):
         """Assembles the left, center, and right side panels with dynamic theme bindings."""
-        # Get active theme colors
         c = THEMES[self.app.current_theme]
 
-        # --- LEFT PANEL (File List, Filtering & Navigation) ---
         self.app.left_panel = tk.Frame(self.root, width=280, bg=c["bg_panel"], padx=10, pady=10)
         self.app.left_panel.pack(side=tk.LEFT, fill=tk.Y)
         self.app.left_panel.pack_propagate(False)
 
-        # Theme Switch Button at the very top
         self.btn_theme = tk.Button(self.app.left_panel, text="🌓 Switch Theme", command=self.app.toggle_theme,
                                    bg=c["btn_nav"], fg=c["fg_label"], font=("Segoe UI", 9, "bold"),
                                    bd=0, cursor="hand2", activebackground=c["btn_nav_active"], activeforeground=c["fg_label"],
@@ -33,8 +30,6 @@ class LayoutManager:
                                bd=0, cursor="hand2", activebackground="#0056b3", activeforeground="white",
                                pady=8, relief=tk.FLAT)
         btn_folder.pack(fill=tk.X, pady=(0, 10))
-        
-        # --- NEW: SEARCH & STATUS FILTER SECTION ---
         filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
         filter_frame.pack(fill=tk.X, pady=(0, 5))
         
@@ -58,14 +53,12 @@ class LayoutManager:
                                            font=("Segoe UI", 9), activestyle="none")
         self.app.file_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
-        # --- CENTER PANEL (Canvas & Upper Mode Selector) ---
         self.app.center_panel = tk.Frame(self.root, bg=c["bg_main"], padx=10, pady=10)
         self.app.center_panel.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         
         self.app.mode_frame = tk.Frame(self.app.center_panel, bg=c["bg_main"], pady=5)
         self.app.mode_frame.pack(fill=tk.X)
         
-        # --- MODERN TOGGLE BUTTONS ---
         from config.config import DRAW_MODE_RECT, DRAW_MODE_POLY, MODE_BATCH_DEL
         
         toggle_style = {
@@ -93,14 +86,12 @@ class LayoutManager:
                                         bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
         self.btn_batch.pack(side=tk.LEFT, padx=3)
         
-        # Updated hint string reflecting shortcuts
         self.lbl_hint = tk.Label(self.app.mode_frame, text="| Ctrl+Scroll: Zoom | Middle Mouse/Grip: Pan | Ctrl+C/V: Duplicate", bg=c["bg_main"], fg="#ffc107", font=("Segoe UI", 9, "italic"))
         self.lbl_hint.pack(side=tk.LEFT, padx=10)
 
         self.app.canvas = tk.Canvas(self.app.center_panel, bg=c["bg_canvas"], highlightthickness=1, highlightbackground=c["border"])
         self.app.canvas.pack(fill=tk.BOTH, expand=True, pady=5)
 
-        # --- RIGHT PANEL (Labels & Code Editor) ---
         self.app.right_panel = tk.Frame(self.root, width=320, bg=c["bg_panel"], padx=10, pady=10)
         self.app.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
         self.app.right_panel.pack_propagate(False)
@@ -131,7 +122,6 @@ class LayoutManager:
                                        padx=5, pady=5)
         self.app.txt_display.pack(fill=tk.BOTH, expand=True, pady=5)
 
-        # Navigation at the bottom
         self.nav_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
         self.nav_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
         
@@ -145,32 +135,27 @@ class LayoutManager:
         """Dynamically applies colors from the newly selected theme to all widgets."""
         c = THEMES[self.app.current_theme]
         
-        # Apply theme colors across panels and layouts
         self.app.left_panel.configure(bg=c["bg_panel"])
         self.app.center_panel.configure(bg=c["bg_main"])
         self.app.right_panel.configure(bg=c["bg_panel"])
         self.app.mode_frame.configure(bg=c["bg_main"])
         self.nav_frame.configure(bg=c["bg_panel"])
         
-        # Labels
         self.app.lbl_file_count.configure(bg=c["bg_panel"], fg=c["fg_sub"])
         self.lbl_hint.configure(bg=c["bg_main"])
         self.lbl_labels_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
         self.lbl_txt_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
 
-        # Lists, Inputs & Editors
         self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
         self.app.ent_search.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
 
-        # Dynamic updates for the mode toggle buttons
         self.btn_rect.configure(bg=c["btn_nav"], fg=c["fg_label"])
         self.btn_poly.configure(bg=c["btn_nav"], fg=c["fg_label"])
         self.btn_batch.configure(bg=c["btn_nav"], fg=c["fg_label"])
 
-        # Navigation & Theme Buttons
         self.btn_theme.configure(bg=c["btn_nav"], fg=c["fg_label"], activebackground=c["btn_nav_active"])
         self.btn_prev_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
         self.btn_next_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])

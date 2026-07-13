@@ -21,7 +21,7 @@ class YoloAnnotatorApp:
         self.root.configure(bg=THEMES[self.current_theme]["bg_main"])
 
         self.style = ttk.Style()
-        self.style.theme_use("clam")
+        self.theme_use_setting = self.style.theme_use("clam")
         self.update_ttk_styles()
 
         self.storage = StorageManager()
@@ -41,6 +41,10 @@ class YoloAnnotatorApp:
         self.annotations = []
         self.current_poly_points = []
         self.copied_annotation = None  # Clipboard memory
+
+        # Undo / Redo stacks
+        self.undo_stack = []
+        self.redo_stack = []
 
         # Interaction tracking positions
         self.start_x = None
@@ -66,6 +70,12 @@ class YoloAnnotatorApp:
         self.root.bind("<Key>", self.on_key_press)
         self.root.bind("<Control-c>", self.copy_selected_annotation)
         self.root.bind("<Control-v>", self.paste_selected_annotation)
+        
+        # Undo / Redo shortcuts
+        self.root.bind("<Control-z>", self.undo)
+        self.root.bind("<Control-Z>", self.undo)
+        self.root.bind("<Control-y>", self.redo)
+        self.root.bind("<Control-Y>", self.redo)
 
         # Dynamic search and status layout queries hooks
         self.ent_search.bind("<KeyRelease>", lambda e: self.refresh_file_list())
@@ -119,10 +129,13 @@ class YoloAnnotatorApp:
     def on_class_select(self, event):
         selection = self.class_listbox.curselection()
         if selection:
-            self.current_class_idx = selection[0]
-            if self.selected_ann_idx is not None:
-                self.annotations[self.selected_ann_idx]["class_idx"] = self.current_class_idx
-                self.save_current_state()
+            target_class = selection[0]
+            if self.current_class_idx != target_class or self.selected_ann_idx is not None:
+                self.current_class_idx = target_class
+                if self.selected_ann_idx is not None:
+                    self.save_history_state()
+                    self.annotations[self.selected_ann_idx]["class_idx"] = self.current_class_idx
+                    self.save_current_state()
 
     def add_label(self):
         name = simpledialog.askstring("New Label", "Label name:")
@@ -192,6 +205,10 @@ class YoloAnnotatorApp:
         self.current_poly_points = []
         self.selected_ann_idx = None
 
+        # Reset history stacks on image change
+        self.undo_stack = []
+        self.redo_stack = []
+
         iw, ih = self.orig_image.size
         cw, ch = self.canvas.winfo_width() or 800, self.canvas.winfo_height() or 600
         self.canvas_mgr.update_scales(cw, ch, iw, ih)
@@ -237,6 +254,56 @@ class YoloAnnotatorApp:
         self.refresh_file_list()
         self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
+    def save_history_state(self):
+        """Saves a deep copy of the current annotations to the undo stack before any modification."""
+        import copy
+        if len(self.undo_stack) >= 50:
+            self.undo_stack.pop(0)
+        self.undo_stack.append(copy.deepcopy(self.annotations))
+        self.redo_stack.clear()
+
+    def undo(self, event=None):
+        """Reverts the last annotation action (Ctrl+Z) and forces a clean canvas redraw."""
+        if self.undo_stack:
+            import copy
+            self.redo_stack.append(copy.deepcopy(self.annotations))
+            self.annotations = self.undo_stack.pop()
+            
+            self.selected_ann_idx = None
+            self.current_poly_points = []
+            
+            # Save without saving another step into history
+            img_name = self.filtered_files[self.current_idx]
+            iw, ih = self.orig_image.size
+            self.storage.save_labels(img_name, self.annotations, iw, ih)
+            self.update_txt_preview()
+            self.refresh_file_list()
+            
+            # Explicit canvas cleanup to kill ghost outlines
+            self.canvas.delete("ann")
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
+
+    def redo(self, event=None):
+        """Re-applies the previously reverted action (Ctrl+Y) and forces a clean canvas redraw."""
+        if self.redo_stack:
+            import copy
+            self.undo_stack.append(copy.deepcopy(self.annotations))
+            self.annotations = self.redo_stack.pop()
+            
+            self.selected_ann_idx = None
+            self.current_poly_points = []
+            
+            # Save without saving another step into history
+            img_name = self.filtered_files[self.current_idx]
+            iw, ih = self.orig_image.size
+            self.storage.save_labels(img_name, self.annotations, iw, ih)
+            self.update_txt_preview()
+            self.refresh_file_list()
+            
+            # Explicit canvas cleanup to kill ghost outlines
+            self.canvas.delete("ann")
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
+
     def update_txt_preview(self):
         self.txt_display.delete("1.0", tk.END)
         if self.current_idx >= 0 and self.filtered_files:
@@ -259,6 +326,7 @@ class YoloAnnotatorApp:
         iw, ih = self.orig_image.size
         self.annotations = self.storage.load_labels(img_name, iw, ih)
         self.refresh_file_list()
+        self.canvas.delete("ann")
         self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
     # --- ZOOM & PAN EVENT ROUTERS ---
@@ -306,6 +374,7 @@ class YoloAnnotatorApp:
         """Duplicates cached buffer entries shifting coordinate positions slightly."""
         if self.copied_annotation and self.orig_image:
             import copy
+            self.save_history_state()
             new_ann = copy.deepcopy(self.copied_annotation)
             
             # Displace bounds metrics elements configurations slightly to highlight execution instances
@@ -332,12 +401,13 @@ class YoloAnnotatorApp:
 
         if self.draw_mode == MODE_BATCH_DEL:
             self.start_x, self.start_y = event.x, event.y
-            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="#dc3545", dash=(4, 4), width=2,tags="ann")
+            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="#dc3545", dash=(4, 4), width=2, tags="ann")
             return
 
         if self.selected_ann_idx is not None:
             handle = self.canvas_mgr.get_handle_at_pos(event.x, event.y, self.annotations[self.selected_ann_idx])
             if handle:
+                self.save_history_state()  # Dragging handles changes geometry bounds
                 self.active_handle = handle
                 self.is_dragging = True
                 return
@@ -384,6 +454,10 @@ class YoloAnnotatorApp:
                 elif self.active_handle == "sw": x1, y2 = img_x, img_y
                 ann["points"] = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
             elif not self.active_handle:
+                # If dragging the entire shape, save state once at the start of drag
+                if not hasattr(self, '_drag_state_saved') or not self._drag_state_saved:
+                    self.save_history_state()
+                    self._drag_state_saved = True
                 dx, dy = img_x - self.drag_start_img_x, img_y - self.drag_start_img_y
                 if ann["type"] == DRAW_MODE_RECT:
                     ann["points"] = [ann["points"][0] + dx, ann["points"][1] + dy, ann["points"][2] + dx, ann["points"][3] + dy]
@@ -393,10 +467,14 @@ class YoloAnnotatorApp:
             self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
         elif self.draw_mode == DRAW_MODE_RECT and self.current_rect_id:
             self.canvas.coords(self.current_rect_id, self.start_x, self.start_y, event.x, event.y)
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, (event.x, event.y), classes_list=self.classes, app_instance=self)
 
     def on_mouse_release(self, event):
         from config.config import MODE_BATCH_DEL
         
+        if hasattr(self, '_drag_state_saved'):
+            self._drag_state_saved = False
+
         if self.draw_mode == MODE_BATCH_DEL and self.start_x is not None:
             img_x1, img_y1 = self.canvas_mgr.get_orig_coords(self.start_x, self.start_y)
             img_x2, img_y2 = self.canvas_mgr.get_orig_coords(event.x, event.y)
@@ -404,6 +482,7 @@ class YoloAnnotatorApp:
             min_y, max_y = min(img_y1, img_y2), max(img_y1, img_y2)
             
             if (max_x - min_x) > 5 and (max_y - min_y) > 5:
+                self.save_history_state()
                 remaining_annotations = []
                 for ann in self.annotations:
                     if ann["type"] == "rectangle":
@@ -431,6 +510,7 @@ class YoloAnnotatorApp:
             img_x1, img_y1 = self.canvas_mgr.get_orig_coords(self.start_x, self.start_y)
             img_x2, img_y2 = self.canvas_mgr.get_orig_coords(event.x, event.y)
             if abs(img_x1 - img_x2) > 2 and abs(img_y1 - img_y2) > 2:
+                self.save_history_state()
                 pts = [min(img_x1, img_x2), min(img_y1, img_y2), max(img_x1, img_x2), max(img_y1, img_y2)]
                 self.annotations.append({"type": DRAW_MODE_RECT, "class_idx": self.current_class_idx, "points": pts})
                 self.save_current_state()
@@ -439,9 +519,14 @@ class YoloAnnotatorApp:
             self.save_current_state()
             self.is_dragging = False
             self.active_handle = None
+            
+            # Explicit cleanup on release
+            self.canvas.delete("ann")
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
     def finish_polygon(self, event):
         if self.draw_mode == DRAW_MODE_POLY and len(self.current_poly_points) >= 2:
+            self.save_history_state()
             img_x, img_y = self.canvas_mgr.get_orig_coords(event.x, event.y)
             self.current_poly_points.append((img_x, img_y))
             flat_pts = [coord for pt in self.current_poly_points for coord in pt]
@@ -453,9 +538,19 @@ class YoloAnnotatorApp:
         focused_widget = self.root.focus_get()
         if focused_widget == self.txt_display: return
         if self.selected_ann_idx is not None:
+            self.save_history_state()
             self.annotations.pop(self.selected_ann_idx)
             self.selected_ann_idx = None
-            self.save_current_state()
+            
+            # Explicit sync write and clear canvas
+            img_name = self.filtered_files[self.current_idx]
+            iw, ih = self.orig_image.size
+            self.storage.save_labels(img_name, self.annotations, iw, ih)
+            self.update_txt_preview()
+            self.refresh_file_list()
+            
+            self.canvas.delete("ann")
+            self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
     def on_key_press(self, event):
         focused_widget = self.root.focus_get()
@@ -464,14 +559,16 @@ class YoloAnnotatorApp:
         if event.char.isdigit():
             target_idx = int(event.char)
             if target_idx < len(self.classes):
-                self.current_class_idx = target_idx
-                self.class_listbox.selection_clear(0, tk.END)
-                self.class_listbox.selection_set(self.current_class_idx)
-                if self.selected_ann_idx is not None:
-                    self.annotations[self.selected_ann_idx]["class_idx"] = self.current_class_idx
-                    self.save_current_state()
-                else:
-                    self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
+                if self.current_class_idx != target_idx or self.selected_ann_idx is not None:
+                    self.current_class_idx = target_idx
+                    self.class_listbox.selection_clear(0, tk.END)
+                    self.class_listbox.selection_set(self.current_class_idx)
+                    if self.selected_ann_idx is not None:
+                        self.save_history_state()
+                        self.annotations[self.selected_ann_idx]["class_idx"] = self.current_class_idx
+                        self.save_current_state()
+                    else:
+                        self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
     def on_file_select(self, event):
         sel = self.file_listbox.curselection()

@@ -2,6 +2,7 @@
 
 from config.config import COLOR_PALETTE, DRAW_MODE_RECT, DRAW_MODE_POLY
 import tkinter as tk
+
 class CanvasManager:
     def __init__(self, canvas):
         self.canvas = canvas
@@ -10,7 +11,6 @@ class CanvasManager:
         self.offset_x = 0
         self.offset_y = 0
         
-        # Zoom & Pan states
         self.zoom_level = 1.0
         self.pan_x = 0.0
         self.pan_y = 0.0
@@ -24,7 +24,6 @@ class CanvasManager:
 
     def get_orig_coords(self, cx, cy):
         """Maps view screen coordinates into actual original image space using zoom factor matrices."""
-        # De-render viewports offsets and reverse panning and magnification structures
         x_unzoom = (cx - self.offset_x - self.pan_x) / self.zoom_level
         y_unzoom = (cy - self.offset_y - self.pan_y) / self.zoom_level
         return x_unzoom / self.scale_x, y_unzoom / self.scale_y
@@ -62,12 +61,12 @@ class CanvasManager:
                 return name
         return None
 
-    def draw_all(self, annotations, selected_idx, current_poly_points, current_class_idx, mouse_pos=None, classes_list=None):
+    def draw_all(self, annotations, selected_idx, current_poly_points, current_class_idx, mouse_pos=None, classes_list=None, app_instance=None):
         """Renders all confirmed shapes, vectors, handles, and active draw frames with category text overlays."""
         self.canvas.delete("ann")
         
-        # We check if classes list is available to resolve names, otherwise fallback to ID
         available_classes = classes_list if classes_list else []
+        curr_c = COLOR_PALETTE[current_class_idx % len(COLOR_PALETTE)]
         
         for idx, ann in enumerate(annotations):
             class_idx = ann["class_idx"]
@@ -77,7 +76,6 @@ class CanvasManager:
             dash_pattern = (4, 4) if is_selected else None
             width_spec = 3 if is_selected else 2
             
-            # Resolve the tag text name (e.g., "0: person")
             tag_name = available_classes[class_idx] if class_idx < len(available_classes) else f"ID {class_idx}"
             display_text = f"{class_idx}: {tag_name}"
 
@@ -86,7 +84,6 @@ class CanvasManager:
                 x2, y2 = self.get_canvas_coords(ann["points"][2], ann["points"][3])
                 self.canvas.create_rectangle(x1, y1, x2, y2, outline=outline_color, dash=dash_pattern, width=width_spec, tags="ann")
                 
-                # NEW: Draw text badge right above the rectangle corner
                 self.canvas.create_text(x1, y1 - 10, text=display_text, fill=base_c, font=("Segoe UI", 9, "bold"), anchor=tk.W, tags="ann")
                 
                 if is_selected:
@@ -98,12 +95,17 @@ class CanvasManager:
                     c_pts.extend(self.get_canvas_coords(ann["points"][i], ann["points"][i + 1]))
                 self.canvas.create_polygon(c_pts, outline=outline_color, fill="", dash=dash_pattern, width=width_spec, tags="ann")
                 
-                # NEW: Draw text badge right above the first point of the polygon mesh
                 if len(c_pts) >= 2:
                     self.canvas.create_text(c_pts[0], c_pts[1] - 10, text=display_text, fill=base_c, font=("Segoe UI", 9, "bold"), anchor=tk.W, tags="ann")
 
+        # --- LIVE RECTANGLE PREVIEW ---
+        # Ha épp Rectangle módban húzzuk az egeret (létezik start_x), akkor rajzolunk egy élő segédkeretet
+        if app_instance and app_instance.draw_mode == DRAW_MODE_RECT and app_instance.start_x is not None and mouse_pos:
+            mx, my = mouse_pos
+            self.canvas.create_rectangle(app_instance.start_x, app_instance.start_y, mx, my, outline=curr_c, dash=(4, 4), width=2, tags="ann")
+
+        # --- LIVE POLYGON PREVIEW ---
         if current_poly_points:
-            curr_c = COLOR_PALETTE[current_class_idx % len(COLOR_PALETTE)]
             canvas_poly_pts = [self.get_canvas_coords(pt[0], pt[1]) for pt in current_poly_points]
             
             for i in range(len(canvas_poly_pts) - 1):
