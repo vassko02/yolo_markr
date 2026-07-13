@@ -92,12 +92,9 @@ class StorageManager:
             return
         
         classes_path = os.path.join(self.image_dir, "classes.txt")
-        try:
-            with open(classes_path, "w", encoding="utf-8") as f:
-                for cls in classes:
-                    f.write(f"{cls}\n")
-        except Exception as e:
-            print(f"Error saving classes.txt to source dir: {e}")
+        with open(classes_path, "w", encoding="utf-8") as f:
+            for cls in classes:
+                f.write(f"{cls}\n")
 
     def load_classes(self):
         """Loads classes from classes.txt if it exists directly in the image source directory."""
@@ -107,10 +104,7 @@ class StorageManager:
         classes_path = os.path.join(self.image_dir, "classes.txt")
         
         if os.path.exists(classes_path):
-            try:
-                with open(classes_path, "r", encoding="utf-8") as f:
-                    classes = [line.strip() for line in f if line.strip()]
-                return classes
-            except Exception as e:
-                print(f"Error loading classes.txt from source dir: {e}")
+            with open(classes_path, "r", encoding="utf-8") as f:
+                classes = [line.strip() for line in f if line.strip()]
+            return classes
         return None
