@@ -599,7 +599,113 @@ class YoloAnnotatorApp:
             self.load_image()
             self.file_listbox.selection_clear(0, tk.END)
             self.file_listbox.selection_set(self.current_idx)
+            
+    def open_augmentation_dialog(self):
+        """Opens a dialog window with a progress bar to configure and run dataset augmentations."""
+        if not self.storage.image_dir:
+            from tkinter import messagebox
+            messagebox.showwarning("Warning", "Please select a working directory first!")
+            return
 
+        aug_win = tk.Toplevel(self.root)
+        aug_win.title("Dataset Augmentation Options")
+        aug_win.geometry("450x600")
+        aug_win.resizable(False, False)
+        
+        c = THEMES[self.current_theme]
+        aug_win.configure(bg=c["bg_panel"])
+
+        # Title
+        tk.Label(aug_win, text="Data Augmentation Settings", font=("Segoe UI", 12, "bold"), bg=c["bg_panel"], fg=c["fg_label"]).pack(pady=10)
+
+        # Variables
+        var_labels_too = tk.BooleanVar(value=True)
+        var_flip_h = tk.BooleanVar(value=False)
+        var_flip_v = tk.BooleanVar(value=False)
+        
+        # TTK Style check for dark mode checkboxes and progressbar
+        self.style.configure("Aug.TCheckbutton", background=c["bg_panel"], foreground=c["fg_label"], font=("Segoe UI", 9))
+        self.style.configure("Aug.Horizontal.TProgressbar", thickness=15)
+
+        # Checkboxes
+        ttk.Checkbutton(aug_win, text="Augment Labels together with Images", variable=var_labels_too, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
+        ttk.Checkbutton(aug_win, text="Horizontal Flip (Left-Right)", variable=var_flip_h, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
+        ttk.Checkbutton(aug_win, text="Vertical Flip (Top-Bottom)", variable=var_flip_v, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
+
+        # Sliders for Brightness & Contrast
+        tk.Label(aug_win, text="Max Brightness Variance (e.g. 0.3 means 0.7x - 1.3x):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        scale_bright = tk.Scale(aug_win, from_=0.0, to=1.0, resolution=0.1, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0)
+        scale_bright.set(0.2)
+        scale_bright.pack(fill=tk.X, padx=30, pady=5)
+
+        tk.Label(aug_win, text="Max Contrast Variance (e.g. 0.3 means 0.7x - 1.3x):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        scale_contrast = tk.Scale(aug_win, from_=0.0, to=1.0, resolution=0.1, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0)
+        scale_contrast.set(0.2)
+        scale_contrast.pack(fill=tk.X, padx=30, pady=5)
+
+        # Count Spinner
+        tk.Label(aug_win, text="Augmentation Count per Image (Multiplier):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        spin_count = tk.Spinbox(aug_win, from_=1, to=20, width=5, font=("Segoe UI", 10))
+        spin_count.pack(anchor=tk.W, padx=30, pady=5)
+
+        # Loading / Progress Elements
+        lbl_status = tk.Label(aug_win, text="", bg=c["bg_panel"], fg=c["fg_label"], font=("Segoe UI", 9, "italic"))
+        lbl_status.pack(fill=tk.X, padx=30, pady=(15, 2))
+        
+        progress_bar = ttk.Progressbar(aug_win, orient=tk.HORIZONTAL, length=300, mode='determinate', style="Aug.Horizontal.TProgressbar")
+        progress_bar.pack(fill=tk.X, padx=30, pady=(0, 10))
+
+        def run_processing():
+            from data.augmenter import DataAugmenter
+            
+            try:
+                multiplier = int(spin_count.get())
+            except ValueError:
+                multiplier = 1
+
+            options = {
+                "labels_too": var_labels_too.get(),
+                "flip_horizontal": var_flip_h.get(),
+                "flip_vertical": var_flip_v.get(),
+                "bright_var": scale_bright.get(),
+                "contrast_var": scale_contrast.get(),
+                "multiplier": multiplier
+            }
+            
+            files_to_process = self.storage.image_files
+            if not files_to_process:
+                return
+            
+            total_files = len(files_to_process)
+            progress_bar["maximum"] = total_files
+            
+            btn_generate.config(state=tk.DISABLED) # Futtatás alatt letiltjuk a gombot
+            
+            for current_idx, img_name in enumerate(files_to_process):
+                # UI frissítése a folyamatjelzőhöz
+                lbl_status.config(text=f"Processing: {img_name} ({current_idx + 1}/{total_files})")
+                progress_bar["value"] = current_idx + 1
+                aug_win.update()  # Kényszerítjük a Tkintert a UI azonnali újrarajzolására
+
+                img_path = os.path.join(self.storage.image_dir, img_name)
+                base = os.path.splitext(img_name)[0]
+                lbl_path = os.path.join(self.storage.labels_dir, f"{base}.txt")
+                
+                DataAugmenter.augment_dataset(
+                    image_path=img_path,
+                    label_path=lbl_path,
+                    output_dir=self.storage.image_dir,
+                    options=options
+                )
+            
+            # Amikor elkészült, NICS felugró ablak (messagebox), csak bezáródik az ablak és frissít
+            aug_win.destroy()
+            self.refresh_file_list()
+
+        # Run Button
+        btn_generate = tk.Button(aug_win, text="🚀 Generate Augmented Dataset", command=run_processing, bg="#28a745", fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
+        btn_generate.pack(fill=tk.X, padx=30, pady=15)
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = YoloAnnotatorApp(root)
