@@ -142,6 +142,7 @@ class YoloAnnotatorApp:
         if name:
             self.classes.append(name.strip())
             self.update_class_listbox()
+            self.storage.save_classes(self.classes)
 
     def edit_label(self):
         idx = self.current_class_idx
@@ -150,18 +151,27 @@ class YoloAnnotatorApp:
         if new_name:
             self.classes[idx] = new_name.strip()
             self.update_class_listbox()
+            self.storage.save_classes(self.classes)
 
     def remove_label(self):
         if len(self.classes) > 1:
             self.classes.pop(self.current_class_idx)
             self.current_class_idx = 0
             self.update_class_listbox()
+            self.storage.save_classes(self.classes)
 
     def select_directory(self):
         selected = filedialog.askdirectory()
         if not selected: return
         self.storage.setup_directories(selected)
         self.refresh_file_list()
+        
+        loaded_classes = self.storage.load_classes()
+        if loaded_classes:
+            self.classes = loaded_classes
+            self.current_class_idx = 0
+            self.update_class_listbox()
+        
         if self.filtered_files:
             self.current_idx = 0
             self.load_image()

@@ -85,3 +85,26 @@ class StorageManager:
                         denorm.extend([coords[i] * img_w, coords[i + 1] * img_h])
                     annotations.append({"type": "polygon", "class_idx": cid, "points": denorm})
         return annotations
+    
+    def save_classes(self, classes):
+        """Saves the current classes list directly into the image source directory."""
+        if not hasattr(self, 'image_dir') or not self.image_dir:
+            return
+        
+        classes_path = os.path.join(self.image_dir, "classes.txt")
+        with open(classes_path, "w", encoding="utf-8") as f:
+            for cls in classes:
+                f.write(f"{cls}\n")
+
+    def load_classes(self):
+        """Loads classes from classes.txt if it exists directly in the image source directory."""
+        if not hasattr(self, 'image_dir') or not self.image_dir:
+            return None
+            
+        classes_path = os.path.join(self.image_dir, "classes.txt")
+        
+        if os.path.exists(classes_path):
+            with open(classes_path, "r", encoding="utf-8") as f:
+                classes = [line.strip() for line in f if line.strip()]
+            return classes
+        return None
