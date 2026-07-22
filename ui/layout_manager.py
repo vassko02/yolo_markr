@@ -92,7 +92,7 @@ class LayoutManager:
                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#28a745", activebackground="#28a745", activeforeground="white", **toggle_style)
         self.btn_poly.pack(side=tk.LEFT, padx=3)
 
-        self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="🗑️ Batch Delete", value=MODE_BATCH_DEL,
+        self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="Batch Delete", value=MODE_BATCH_DEL,
                                         bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
         self.btn_batch.pack(side=tk.LEFT, padx=3)
         

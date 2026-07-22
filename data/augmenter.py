@@ -1,4 +1,11 @@
-"""Module for handling advanced pipeline data augmentation with nested label structures and original file inclusion."""
+"""Module for handling advanced pipeline data augmentation with nested label structures and original file inclusion.
+
+This module contains tools to apply randomized or deterministic geometric and color space 
+augmentations to images and their corresponding normalized label structures (e.g., bounding boxes or polygons).
+
+Classes:
+    DataAugmenter: Handles randomized image enhancements, nested coordinate transformations, and baseline dataset replication.
+"""
 
 import os
 import random
@@ -6,14 +13,31 @@ import shutil
 from PIL import Image, ImageEnhance
 
 class DataAugmenter:
-    """Handles randomized image enhancements, nested coordinate transformations, and baseline dataset replication."""
+    """Handles randomized image enhancements, nested coordinate transformations, and baseline dataset replication.
+    
+    Attributes:
+        No instance attributes. Contains static processing methods.
+        
+    Methods:
+        augment_dataset: Core pipeline to multiply, transform, and structure image and label datasets.
+    """
 
     @staticmethod
     def augment_dataset(image_path, label_path, output_dir, options):
-        """
-        Applies multiples and combinations of augmentations. 
+        """Applies multiples and combinations of augmentations including color adjustments, flips, and rotations.
+
         Saves labels nested INSIDE the augmented images directory,
         and includes the original baseline image and label in the output.
+
+        Parameters:
+            image_path (str): File system path to the source image.
+            label_path (str): File system path to the source label file.
+            output_dir (str): Base destination directory for generated outputs.
+            options (dict): Configuration mapping containing multiplier, bright_var, contrast_var,
+                            flip_horizontal, flip_vertical, rotate_orthogonal, and labels_too keys.
+
+        Returns:
+            int: Total count of mutated variation files successfully generated and committed to disk.
         """
         if not os.path.exists(image_path):
             return 0
@@ -103,6 +127,57 @@ class DataAugmenter:
                         else:
                             for i in range(1, len(coords), 2):
                                 coords[i] = 1.0 - coords[i]
+                modified = True
+
+            # 5. Random Orthogonal Rotation (90, 180, 270 degrees)
+            if options.get("rotate_orthogonal", False) and random.choice([True, False]):
+                angle = random.choice([90, 180, 270])
+                if angle == 90:
+                    img = img.transpose(Image.ROTATE_90)
+                    if augment_labels:
+                        for ann in annotations:
+                            coords = ann[1]
+                            if len(coords) == 4:
+                                # YOLO format coordinates (x_center, y_center, width, height)
+                                x, y, w, h = coords
+                                coords[0] = 1.0 - y
+                                coords[1] = x
+                                coords[2] = h
+                                coords[3] = w
+                            else:
+                                # Polygon coordinates (x1, y1, x2, y2, ...)
+                                for i in range(0, len(coords), 2):
+                                    x_old, y_old = coords[i], coords[i+1]
+                                    coords[i] = 1.0 - y_old
+                                    coords[i+1] = x_old
+                elif angle == 180:
+                    img = img.transpose(Image.ROTATE_180)
+                    if augment_labels:
+                        for ann in annotations:
+                            coords = ann[1]
+                            if len(coords) == 4:
+                                coords[0] = 1.0 - coords[0]
+                                coords[1] = 1.0 - coords[1]
+                            else:
+                                for i in range(0, len(coords), 2):
+                                    coords[i] = 1.0 - coords[i]
+                                    coords[i+1] = 1.0 - coords[i+1]
+                elif angle == 270:
+                    img = img.transpose(Image.ROTATE_270)
+                    if augment_labels:
+                        for ann in annotations:
+                            coords = ann[1]
+                            if len(coords) == 4:
+                                x, y, w, h = coords
+                                coords[0] = y
+                                coords[1] = 1.0 - x
+                                coords[2] = h
+                                coords[3] = w
+                            else:
+                                for i in range(0, len(coords), 2):
+                                    x_old, y_old = coords[i], coords[i+1]
+                                    coords[i] = y_old
+                                    coords[i+1] = 1.0 - x_old
                 modified = True
 
             if not modified and multiplier == 1:

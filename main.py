@@ -601,7 +601,11 @@ class YoloAnnotatorApp:
             self.file_listbox.selection_set(self.current_idx)
             
     def open_augmentation_dialog(self):
-        """Opens a dialog window with a progress bar to configure and run dataset augmentations."""
+        """Opens a dialog window with a progress bar to configure and run dataset augmentations.
+        
+        This method dynamically configures the styling for dark mode compatibility, injection of 
+        rotation choices into the pipeline, and updates the tracking states visually.
+        """
         if not self.storage.image_dir:
             from tkinter import messagebox
             messagebox.showwarning("Warning", "Please select a working directory first!")
@@ -609,7 +613,7 @@ class YoloAnnotatorApp:
 
         aug_win = tk.Toplevel(self.root)
         aug_win.title("Dataset Augmentation Options")
-        aug_win.geometry("450x600")
+        aug_win.geometry("450x650")  # Magasság finomhangolása a többsoros szövegnek
         aug_win.resizable(False, False)
         
         c = THEMES[self.current_theme]
@@ -622,15 +626,30 @@ class YoloAnnotatorApp:
         var_labels_too = tk.BooleanVar(value=True)
         var_flip_h = tk.BooleanVar(value=False)
         var_flip_v = tk.BooleanVar(value=False)
+        var_rotate_ortho = tk.BooleanVar(value=False)
         
-        # TTK Style check for dark mode checkboxes and progressbar
+        # --- MODERN PROGRESSBAR & CHECKBUTTON STYLING ---
         self.style.configure("Aug.TCheckbutton", background=c["bg_panel"], foreground=c["fg_label"], font=("Segoe UI", 9))
-        self.style.configure("Aug.Horizontal.TProgressbar", thickness=15)
+        self.style.map("Aug.TCheckbutton",
+            background=[("active", c["bg_panel"]), ("hover", c["bg_panel"])],
+            foreground=[("active", c["fg_label"]), ("hover", c["fg_label"])]
+        )
+        
+        # Lapos, modern, zöld folyamatjelző stílus (szegélyek nélkül)
+        self.style.theme_use('clam')  # A clam téma engedi a progressbar teljes testreszabását
+        self.style.configure("Modern.Horizontal.TProgressbar", 
+                             thickness=12, 
+                             bordercolor=c["bg_panel"], 
+                             troughcolor="#e9ecef" if self.current_theme != "dark" else "#2d3748", 
+                             background="#28a745", 
+                             darkcolor="#28a745", 
+                             lightcolor="#28a745")
 
         # Checkboxes
         ttk.Checkbutton(aug_win, text="Augment Labels together with Images", variable=var_labels_too, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Horizontal Flip (Left-Right)", variable=var_flip_h, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Vertical Flip (Top-Bottom)", variable=var_flip_v, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
+        ttk.Checkbutton(aug_win, text="Orthogonal Rotation (Random 90°, 180°, 270°)", variable=var_rotate_ortho, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
 
         # Sliders for Brightness & Contrast
         tk.Label(aug_win, text="Max Brightness Variance (e.g. 0.3 means 0.7x - 1.3x):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
@@ -648,14 +667,17 @@ class YoloAnnotatorApp:
         spin_count = tk.Spinbox(aug_win, from_=1, to=20, width=5, font=("Segoe UI", 10))
         spin_count.pack(anchor=tk.W, padx=30, pady=5)
 
-        # Loading / Progress Elements
-        lbl_status = tk.Label(aug_win, text="", bg=c["bg_panel"], fg=c["fg_label"], font=("Segoe UI", 9, "italic"))
-        lbl_status.pack(fill=tk.X, padx=30, pady=(15, 2))
+        # --- FIX: HOSSZÚ FÁJLNEVEK TÖRDELÉSE ---
+        # tk.Label helyett egy fix szélességű (wraplength) címkét használunk, ami automatikusan töri a sort pixel alapon
+        lbl_status = tk.Label(aug_win, text="", bg=c["bg_panel"], fg=c["fg_label"], font=("Segoe UI", 9, "italic"), justify=tk.LEFT, wraplength=380)
+        lbl_status.pack(fill=tk.X, padx=30, pady=(15, 5))
         
-        progress_bar = ttk.Progressbar(aug_win, orient=tk.HORIZONTAL, length=300, mode='determinate', style="Aug.Horizontal.TProgressbar")
+        # A modern stílussal ellátott progressbar
+        progress_bar = ttk.Progressbar(aug_win, orient=tk.HORIZONTAL, length=300, mode='determinate', style="Modern.Horizontal.TProgressbar")
         progress_bar.pack(fill=tk.X, padx=30, pady=(0, 10))
 
         def run_processing():
+            """Executes the sequential data augmentation loop on the thread worker data."""
             from data.augmenter import DataAugmenter
             
             try:
@@ -667,6 +689,7 @@ class YoloAnnotatorApp:
                 "labels_too": var_labels_too.get(),
                 "flip_horizontal": var_flip_h.get(),
                 "flip_vertical": var_flip_v.get(),
+                "rotate_orthogonal": var_rotate_ortho.get(),
                 "bright_var": scale_bright.get(),
                 "contrast_var": scale_contrast.get(),
                 "multiplier": multiplier
@@ -679,13 +702,13 @@ class YoloAnnotatorApp:
             total_files = len(files_to_process)
             progress_bar["maximum"] = total_files
             
-            btn_generate.config(state=tk.DISABLED) # Futtatás alatt letiltjuk a gombot
+            btn_generate.config(state=tk.DISABLED)
             
             for current_idx, img_name in enumerate(files_to_process):
-                # UI frissítése a folyamatjelzőhöz
-                lbl_status.config(text=f"Processing: {img_name} ({current_idx + 1}/{total_files})")
+                # A státusz frissítésekor az ablak szélességét (380px) figyelembe véve törik majd a hosszú nevek
+                lbl_status.config(text=f"Processing:\n{img_name}\n({current_idx + 1} / {total_files})")
                 progress_bar["value"] = current_idx + 1
-                aug_win.update()  # Kényszerítjük a Tkintert a UI azonnali újrarajzolására
+                aug_win.update()
 
                 img_path = os.path.join(self.storage.image_dir, img_name)
                 base = os.path.splitext(img_name)[0]
@@ -698,7 +721,6 @@ class YoloAnnotatorApp:
                     options=options
                 )
             
-            # Amikor elkészült, NICS felugró ablak (messagebox), csak bezáródik az ablak és frissít
             aug_win.destroy()
             self.refresh_file_list()
 
