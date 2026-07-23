@@ -32,12 +32,19 @@ class LayoutManager:
                                pady=8, relief=tk.FLAT)
         btn_folder.pack(fill=tk.X, pady=(0, 10))
 
-        # NEW: Data Augmentation Button
+        # Data Augmentation Button
         self.btn_aug = tk.Button(self.app.left_panel, text="✨ Data Augmentation", command=self.app.open_augmentation_dialog, 
                                  bg="#6f42c1", fg="white", font=("Segoe UI", 10, "bold"), 
                                  bd=0, cursor="hand2", activebackground="#5a32a3", activeforeground="white",
                                  pady=8, relief=tk.FLAT)
         self.btn_aug.pack(fill=tk.X, pady=(0, 10))
+
+        # NEW: Generate Dataset Split Button
+        self.btn_split = tk.Button(self.app.left_panel, text="📦 Generate Dataset", command=self.app.open_split_dialog, 
+                                  bg="#fd7e14", fg="white", font=("Segoe UI", 10, "bold"), 
+                                  bd=0, cursor="hand2", activebackground="#d96406", activeforeground="white",
+                                  pady=8, relief=tk.FLAT)
+        self.btn_split.pack(fill=tk.X, pady=(0, 10))
 
         filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
         filter_frame.pack(fill=tk.X, pady=(0, 5))
@@ -159,7 +166,7 @@ class LayoutManager:
         self.lbl_txt_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
 
         self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
-        self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
+        self.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
         self.app.ent_search.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
@@ -172,5 +179,5 @@ class LayoutManager:
         self.btn_prev_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
         self.btn_next_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
         
-        # New button style dynamic refresh (keeps text white but handles container updates if any)
         self.btn_aug.configure(activeforeground="white")
+        self.btn_split.configure(activeforeground="white")

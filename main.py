@@ -15,7 +15,9 @@ class YoloAnnotatorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("YOLO Real-time Unified Annotator - yolo-markr")
-        self.root.geometry("1420x900")
+        
+        # Ablak méretének beállítása és középre igazítása az indításkor
+        self.center_window(self.root, 1420, 900)
         
         self.current_theme = "dark"
         self.root.configure(bg=THEMES[self.current_theme]["bg_main"])
@@ -69,8 +71,14 @@ class YoloAnnotatorApp:
         self.root.bind("<Delete>", self.delete_selected_annotation)
         self.root.bind("<Key>", self.on_key_press)
         self.root.bind("<Control-c>", self.copy_selected_annotation)
+        self.root.bind("<Control-C>", self.copy_selected_annotation)
         self.root.bind("<Control-v>", self.paste_selected_annotation)
+        self.root.bind("<Control-V>", self.paste_selected_annotation)        
         
+        # NEW QUICK SHORTCUTS: Képváltás Fel / Le nyílgombokkal
+        self.root.bind("<Up>", lambda event: self.navigate_image_keys("up"))
+        self.root.bind("<Down>", lambda event: self.navigate_image_keys("down"))
+
         # Undo / Redo shortcuts
         self.root.bind("<Control-z>", self.undo)
         self.root.bind("<Control-Z>", self.undo)
@@ -97,6 +105,26 @@ class YoloAnnotatorApp:
         self.canvas.bind("<Control-Button-5>", self.on_zoom)    # Linux scroll down
         self.canvas.bind("<ButtonPress-2>", self.on_pan_start)  # Middle mouse click
         self.canvas.bind("<B2-Motion>", self.on_pan_drag)
+
+    def center_window(self, window, width, height):
+        """Calculates monitor geometric dimension bounds to position windows precisely in the center screen."""
+        window.update_idletasks()
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        window.geometry(f"{width}x{height}+{x}+{y}")
+
+    def navigate_image_keys(self, direction):
+        """Handles fast layout frame traversal maps logic triggered via Up/Down arrow key shortcuts."""
+        focused_widget = self.root.focus_get()
+        if focused_widget == self.txt_display: 
+            return # Engedjük a kurzort mozogni a szövegdobozban, ha ott áll a fókusz
+            
+        if direction == "up":
+            self.prev_image()
+        elif direction == "down":
+            self.next_image()
 
     def update_ttk_styles(self):
         c = THEMES[self.current_theme]
@@ -138,6 +166,7 @@ class YoloAnnotatorApp:
                     self.save_current_state()
 
     def add_label(self):
+        # A simpledialog-ot nem tudjuk közvetlenül vezérelni, de a szöveges beviteli mezők kis méretűek
         name = simpledialog.askstring("New Label", "Label name:")
         if name:
             self.classes.append(name.strip())
@@ -227,17 +256,13 @@ class YoloAnnotatorApp:
         self.render_canvas_image()
         self.update_txt_preview()
 
-    # --- ENHANCED: REAL-TIME ZOOM AND PANNING RENDERING ---
     def render_canvas_image(self):
         """Dynamically re-samples the image frame matching active zoom configurations and draws it."""
         if not self.orig_image: return
         cw, ch = self.canvas.winfo_width() or 800, self.canvas.winfo_height() or 600
         iw, ih = self.orig_image.size
         
-        # Base scale widths matching setup operations values
         nw, nh = int(iw * self.canvas_mgr.scale_x), int(ih * self.canvas_mgr.scale_y)
-        
-        # Append magnification levels adjustments matrix calculations
         zw, zh = int(nw * self.canvas_mgr.zoom_level), int(nh * self.canvas_mgr.zoom_level)
         if zw < 10 or zh < 10: return
 
@@ -245,12 +270,10 @@ class YoloAnnotatorApp:
         self.display_image = ImageTk.PhotoImage(img_resized)
         
         self.canvas.delete("all")
-        # Center drawing offsets append values variables injection
         cx = cw // 2 + self.canvas_mgr.pan_x
         cy = ch // 2 + self.canvas_mgr.pan_y
         self.canvas.create_image(cx, cy, image=self.display_image)
         
-        # Re-sync offsets definitions
         self.canvas_mgr.offset_x = (cw - zw) // 2
         self.canvas_mgr.offset_y = (ch - zh) // 2
         
@@ -282,14 +305,12 @@ class YoloAnnotatorApp:
             self.selected_ann_idx = None
             self.current_poly_points = []
             
-            # Save without saving another step into history
             img_name = self.filtered_files[self.current_idx]
             iw, ih = self.orig_image.size
             self.storage.save_labels(img_name, self.annotations, iw, ih)
             self.update_txt_preview()
             self.refresh_file_list()
             
-            # Explicit canvas cleanup to kill ghost outlines
             self.canvas.delete("ann")
             self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
@@ -303,14 +324,12 @@ class YoloAnnotatorApp:
             self.selected_ann_idx = None
             self.current_poly_points = []
             
-            # Save without saving another step into history
             img_name = self.filtered_files[self.current_idx]
             iw, ih = self.orig_image.size
             self.storage.save_labels(img_name, self.annotations, iw, ih)
             self.update_txt_preview()
             self.refresh_file_list()
             
-            # Explicit canvas cleanup to kill ghost outlines
             self.canvas.delete("ann")
             self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
@@ -339,12 +358,10 @@ class YoloAnnotatorApp:
         self.canvas.delete("ann")
         self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
-    # --- ZOOM & PAN EVENT ROUTERS ---
     def on_zoom(self, event):
         """Handles focal magnification scaling variations via Ctrl+Scroll wheel ticks."""
         if not self.orig_image: return
         
-        # Determine scroll direction
         if event.num == 4 or event.delta > 0:  # Zoom In
             factor = 1.15
         else:  # Zoom Out
@@ -373,7 +390,6 @@ class YoloAnnotatorApp:
         self.pan_start_y = event.y
         self.render_canvas_image()
 
-    # --- ENHANCED: COPY PASTE CLIPBOARD ROUTINES ---
     def copy_selected_annotation(self, event=None):
         """Saves current selected shape attributes inside application instance buffer clipboards."""
         if self.selected_ann_idx is not None and self.selected_ann_idx < len(self.annotations):
@@ -387,13 +403,12 @@ class YoloAnnotatorApp:
             self.save_history_state()
             new_ann = copy.deepcopy(self.copied_annotation)
             
-            # Displace bounds metrics elements configurations slightly to highlight execution instances
             if new_ann["type"] == DRAW_MODE_RECT:
                 x1, y1, x2, y2 = new_ann["points"]
                 shift_x = (x2 - x1) * 0.1
                 shift_y = (y2 - y1) * 0.1
                 new_ann["points"] = [x1 + shift_x, y1 + shift_y, x2 + shift_x, y2 + shift_y]
-            else: # Polygon offsetting math routines variations configuration arrays shifting
+            else:
                 new_ann["points"] = [val + (5.0 if i % 2 == 0 else 5.0) for i, val in enumerate(new_ann["points"])]
             
             self.annotations.append(new_ann)
@@ -417,7 +432,7 @@ class YoloAnnotatorApp:
         if self.selected_ann_idx is not None:
             handle = self.canvas_mgr.get_handle_at_pos(event.x, event.y, self.annotations[self.selected_ann_idx])
             if handle:
-                self.save_history_state()  # Dragging handles changes geometry bounds
+                self.save_history_state()
                 self.active_handle = handle
                 self.is_dragging = True
                 return
@@ -429,6 +444,7 @@ class YoloAnnotatorApp:
             self.active_handle = None
             self.drag_start_img_x, self.drag_start_img_y = img_x, img_y
             self.current_class_idx = self.annotations[clicked]["class_idx"]
+            self.file_listbox.focus_set() # Húzzuk le a fókuszt a listboxra képváltás gyorsításhoz
             self.class_listbox.selection_clear(0, tk.END)
             self.class_listbox.selection_set(self.current_class_idx)
             self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
@@ -464,7 +480,6 @@ class YoloAnnotatorApp:
                 elif self.active_handle == "sw": x1, y2 = img_x, img_y
                 ann["points"] = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
             elif not self.active_handle:
-                # If dragging the entire shape, save state once at the start of drag
                 if not hasattr(self, '_drag_state_saved') or not self._drag_state_saved:
                     self.save_history_state()
                     self._drag_state_saved = True
@@ -530,7 +545,6 @@ class YoloAnnotatorApp:
             self.is_dragging = False
             self.active_handle = None
             
-            # Explicit cleanup on release
             self.canvas.delete("ann")
             self.canvas_mgr.draw_all(self.annotations, self.selected_ann_idx, self.current_poly_points, self.current_class_idx, classes_list=self.classes)
 
@@ -552,7 +566,6 @@ class YoloAnnotatorApp:
             self.annotations.pop(self.selected_ann_idx)
             self.selected_ann_idx = None
             
-            # Explicit sync write and clear canvas
             img_name = self.filtered_files[self.current_idx]
             iw, ih = self.orig_image.size
             self.storage.save_labels(img_name, self.annotations, iw, ih)
@@ -592,6 +605,7 @@ class YoloAnnotatorApp:
             self.load_image()
             self.file_listbox.selection_clear(0, tk.END)
             self.file_listbox.selection_set(self.current_idx)
+            self.file_listbox.see(self.current_idx) # Automatikusan görgessen a listában a kijelöléshez
 
     def prev_image(self):
         if self.current_idx > 0:
@@ -599,13 +613,10 @@ class YoloAnnotatorApp:
             self.load_image()
             self.file_listbox.selection_clear(0, tk.END)
             self.file_listbox.selection_set(self.current_idx)
+            self.file_listbox.see(self.current_idx) # Automatikusan görgessen a listában a kijelöléshez
             
     def open_augmentation_dialog(self):
-        """Opens a dialog window with a progress bar to configure and run dataset augmentations.
-        
-        This method dynamically configures the styling for dark mode compatibility, injection of 
-        rotation choices into the pipeline, and updates the tracking states visually.
-        """
+        """Opens a dialog window with a progress bar to configure and run dataset augmentations."""
         if not self.storage.image_dir:
             from tkinter import messagebox
             messagebox.showwarning("Warning", "Please select a working directory first!")
@@ -613,30 +624,28 @@ class YoloAnnotatorApp:
 
         aug_win = tk.Toplevel(self.root)
         aug_win.title("Dataset Augmentation Options")
-        aug_win.geometry("450x650")  # Magasság finomhangolása a többsoros szövegnek
+        
+        # NEW: Középre igazítás megnyitáskor
+        self.center_window(aug_win, 450, 650)
         aug_win.resizable(False, False)
         
         c = THEMES[self.current_theme]
         aug_win.configure(bg=c["bg_panel"])
 
-        # Title
         tk.Label(aug_win, text="Data Augmentation Settings", font=("Segoe UI", 12, "bold"), bg=c["bg_panel"], fg=c["fg_label"]).pack(pady=10)
 
-        # Variables
         var_labels_too = tk.BooleanVar(value=True)
         var_flip_h = tk.BooleanVar(value=False)
         var_flip_v = tk.BooleanVar(value=False)
         var_rotate_ortho = tk.BooleanVar(value=False)
         
-        # --- MODERN PROGRESSBAR & CHECKBUTTON STYLING ---
         self.style.configure("Aug.TCheckbutton", background=c["bg_panel"], foreground=c["fg_label"], font=("Segoe UI", 9))
         self.style.map("Aug.TCheckbutton",
             background=[("active", c["bg_panel"]), ("hover", c["bg_panel"])],
             foreground=[("active", c["fg_label"]), ("hover", c["fg_label"])]
         )
         
-        # Lapos, modern, zöld folyamatjelző stílus (szegélyek nélkül)
-        self.style.theme_use('clam')  # A clam téma engedi a progressbar teljes testreszabását
+        self.style.theme_use('clam')  
         self.style.configure("Modern.Horizontal.TProgressbar", 
                              thickness=12, 
                              bordercolor=c["bg_panel"], 
@@ -645,13 +654,11 @@ class YoloAnnotatorApp:
                              darkcolor="#28a745", 
                              lightcolor="#28a745")
 
-        # Checkboxes
         ttk.Checkbutton(aug_win, text="Augment Labels together with Images", variable=var_labels_too, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Horizontal Flip (Left-Right)", variable=var_flip_h, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Vertical Flip (Top-Bottom)", variable=var_flip_v, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Orthogonal Rotation (Random 90°, 180°, 270°)", variable=var_rotate_ortho, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
 
-        # Sliders for Brightness & Contrast
         tk.Label(aug_win, text="Max Brightness Variance (e.g. 0.3 means 0.7x - 1.3x):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
         scale_bright = tk.Scale(aug_win, from_=0.0, to=1.0, resolution=0.1, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0)
         scale_bright.set(0.2)
@@ -662,17 +669,13 @@ class YoloAnnotatorApp:
         scale_contrast.set(0.2)
         scale_contrast.pack(fill=tk.X, padx=30, pady=5)
 
-        # Count Spinner
         tk.Label(aug_win, text="Augmentation Count per Image (Multiplier):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
         spin_count = tk.Spinbox(aug_win, from_=1, to=20, width=5, font=("Segoe UI", 10))
         spin_count.pack(anchor=tk.W, padx=30, pady=5)
 
-        # --- FIX: HOSSZÚ FÁJLNEVEK TÖRDELÉSE ---
-        # tk.Label helyett egy fix szélességű (wraplength) címkét használunk, ami automatikusan töri a sort pixel alapon
         lbl_status = tk.Label(aug_win, text="", bg=c["bg_panel"], fg=c["fg_label"], font=("Segoe UI", 9, "italic"), justify=tk.LEFT, wraplength=380)
         lbl_status.pack(fill=tk.X, padx=30, pady=(15, 5))
         
-        # A modern stílussal ellátott progressbar
         progress_bar = ttk.Progressbar(aug_win, orient=tk.HORIZONTAL, length=300, mode='determinate', style="Modern.Horizontal.TProgressbar")
         progress_bar.pack(fill=tk.X, padx=30, pady=(0, 10))
 
@@ -705,7 +708,6 @@ class YoloAnnotatorApp:
             btn_generate.config(state=tk.DISABLED)
             
             for current_idx, img_name in enumerate(files_to_process):
-                # A státusz frissítésekor az ablak szélességét (380px) figyelembe véve törik majd a hosszú nevek
                 lbl_status.config(text=f"Processing:\n{img_name}\n({current_idx + 1} / {total_files})")
                 progress_bar["value"] = current_idx + 1
                 aug_win.update()
@@ -724,10 +726,142 @@ class YoloAnnotatorApp:
             aug_win.destroy()
             self.refresh_file_list()
 
-        # Run Button
         btn_generate = tk.Button(aug_win, text="🚀 Generate Augmented Dataset", command=run_processing, bg="#28a745", fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
         btn_generate.pack(fill=tk.X, padx=30, pady=15)
         
+    def open_split_dialog(self):
+        """Opens a dynamic dialog window to configure and execute dataset train/test/val splitting."""
+        if not self.storage.image_dir:
+            from tkinter import messagebox
+            messagebox.showwarning("Warning", "Please select a working directory first!")
+            return
+
+        split_win = tk.Toplevel(self.root)
+        split_win.title("Dataset Split Configuration")
+        
+        # NEW: Középre igazítás megnyitáskor
+        self.center_window(split_win, 460, 520)
+        split_win.resizable(False, False)
+        
+        c = THEMES[self.current_theme]
+        split_win.configure(bg=c["bg_panel"])
+
+        tk.Label(split_win, text="Dataset Split & YAML Generator", font=("Segoe UI", 12, "bold"), bg=c["bg_panel"], fg=c["fg_label"]).pack(pady=10)
+
+        self._updating_sliders = False
+
+        def adjust_sliders(active_slider):
+            if self._updating_sliders: return
+            self._updating_sliders = True
+
+            val_train = scale_train.get()
+            val_val = scale_val.get()
+            val_test = scale_test.get()
+
+            if active_slider == "train":
+                remainder = 100 - val_train
+                if remainder == 0:
+                    scale_val.set(0)
+                    scale_test.set(0)
+                else:
+                    current_sum = val_val + val_test
+                    if current_sum > 0:
+                        scale_val.set(round(remainder * (val_val / current_sum)))
+                        scale_test.set(100 - val_train - scale_val.get())
+                    else:
+                        scale_val.set(round(remainder / 2))
+                        scale_test.set(100 - val_train - scale_val.get())
+            
+            elif active_slider == "val":
+                remainder = 100 - val_val
+                if remainder == 0:
+                    scale_train.set(0)
+                    scale_test.set(0)
+                else:
+                    current_sum = val_train + val_test
+                    if current_sum > 0:
+                        scale_train.set(round(remainder * (val_train / current_sum)))
+                        scale_test.set(100 - val_val - scale_train.get())
+                    else:
+                        scale_train.set(round(remainder / 2))
+                        scale_test.set(100 - val_val - scale_train.get())
+
+            elif active_slider == "test":
+                remainder = 100 - val_test
+                if remainder == 0:
+                    scale_train.set(0)
+                    scale_val.set(0)
+                else:
+                    current_sum = val_train + val_val
+                    if current_sum > 0:
+                        scale_train.set(round(remainder * (val_train / current_sum)))
+                        scale_val.set(100 - val_test - scale_train.get())
+                    else:
+                        scale_train.set(round(remainder / 2))
+                        scale_test.set(100 - val_test - scale_train.get())
+
+            self._updating_sliders = False
+
+        tk.Label(split_win, text="Train Dataset Ratio (%):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        scale_train = tk.Scale(split_win, from_=0, to=100, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0, command=lambda e: adjust_sliders("train"))
+        scale_train.set(70)
+        scale_train.pack(fill=tk.X, padx=30, pady=5)
+
+        tk.Label(split_win, text="Validation Dataset Ratio (%):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        scale_val = tk.Scale(split_win, from_=0, to=100, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0, command=lambda e: adjust_sliders("val"))
+        scale_val.set(15)
+        scale_val.pack(fill=tk.X, padx=30, pady=5)
+
+        tk.Label(split_win, text="Test Dataset Ratio (%):", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=30, pady=(10, 0))
+        scale_test = tk.Scale(split_win, from_=0, to=100, orient=tk.HORIZONTAL, bg=c["bg_panel"], fg=c["fg_label"], highlightthickness=0, command=lambda e: adjust_sliders("test"))
+        scale_test.set(15)
+        scale_test.pack(fill=tk.X, padx=30, pady=5)
+
+        lbl_split_status = tk.Label(split_win, text="Ready to split repository images.", bg=c["bg_panel"], fg=c["fg_label"], font=("Segoe UI", 9, "italic"))
+        lbl_split_status.pack(fill=tk.X, padx=30, pady=15)
+
+        def run_splitting():
+            from tkinter import messagebox
+            from data.dataset_generator import DatasetGenerator
+
+            ratio_train = scale_train.get() / 100.0
+            ratio_val = scale_val.get() / 100.0
+            ratio_test = scale_test.get() / 100.0
+
+            output_root = filedialog.askdirectory(title="Select Output Target Directory for Dataset Split")
+            if not output_root: return
+
+            btn_execute.config(state=tk.DISABLED)
+            lbl_split_status.config(text="Processing and exporting file matrix...")
+            split_win.update()
+
+            try:
+                processed_pairs = DatasetGenerator.generate_yolo_dataset(
+                    image_files=self.storage.image_files,
+                    image_dir=self.storage.image_dir,
+                    labels_dir=self.storage.labels_dir,
+                    output_root=output_root,
+                    classes=self.classes,
+                    train_ratio=ratio_train,
+                    val_ratio=ratio_val,
+                    test_ratio=ratio_test
+                )
+
+                if processed_pairs > 0:
+                    split_win.destroy()
+                else:
+                    messagebox.showerror("Error", "No valid labeled image/TXT pairs discovered in workspace!")
+                    btn_execute.config(state=tk.NORMAL)
+                    lbl_split_status.config(text="Ready to split repository images.")
+            
+            except Exception as error:
+                messagebox.showerror("Critical Error", f"An error occurred during process: {error}")
+                btn_execute.config(state=tk.NORMAL)
+                lbl_split_status.config(text="Error occurred.")
+
+        btn_execute = tk.Button(split_win, text="🚀 Run Split & Export YAML", command=run_splitting, bg="#fd7e14", fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
+        btn_execute.pack(fill=tk.X, padx=30, pady=10) 
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = YoloAnnotatorApp(root)
