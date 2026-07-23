@@ -15,6 +15,7 @@ class LayoutManager:
         """Assembles the left, center, and right side panels with dynamic theme bindings."""
         c = THEMES[self.app.current_theme]
 
+        # --- LEFT PANEL ---
         self.app.left_panel = tk.Frame(self.root, width=280, bg=c["bg_panel"], padx=10, pady=10)
         self.app.left_panel.pack(side=tk.LEFT, fill=tk.Y)
         self.app.left_panel.pack_propagate(False)
@@ -30,6 +31,21 @@ class LayoutManager:
                                bd=0, cursor="hand2", activebackground="#0056b3", activeforeground="white",
                                pady=8, relief=tk.FLAT)
         btn_folder.pack(fill=tk.X, pady=(0, 10))
+
+        # Data Augmentation Button
+        self.btn_aug = tk.Button(self.app.left_panel, text="✨ Data Augmentation", command=self.app.open_augmentation_dialog, 
+                                 bg="#6f42c1", fg="white", font=("Segoe UI", 10, "bold"), 
+                                 bd=0, cursor="hand2", activebackground="#5a32a3", activeforeground="white",
+                                 pady=8, relief=tk.FLAT)
+        self.btn_aug.pack(fill=tk.X, pady=(0, 10))
+
+        # NEW: Generate Dataset Split Button
+        self.btn_split = tk.Button(self.app.left_panel, text="📦 Generate Dataset", command=self.app.open_split_dialog, 
+                                  bg="#fd7e14", fg="white", font=("Segoe UI", 10, "bold"), 
+                                  bd=0, cursor="hand2", activebackground="#d96406", activeforeground="white",
+                                  pady=8, relief=tk.FLAT)
+        self.btn_split.pack(fill=tk.X, pady=(0, 10))
+
         filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
         filter_frame.pack(fill=tk.X, pady=(0, 5))
         
@@ -53,6 +69,7 @@ class LayoutManager:
                                            font=("Segoe UI", 9), activestyle="none")
         self.app.file_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
+        # --- CENTER PANEL ---
         self.app.center_panel = tk.Frame(self.root, bg=c["bg_main"], padx=10, pady=10)
         self.app.center_panel.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
         
@@ -82,7 +99,7 @@ class LayoutManager:
                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#28a745", activebackground="#28a745", activeforeground="white", **toggle_style)
         self.btn_poly.pack(side=tk.LEFT, padx=3)
 
-        self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="🗑️ Batch Delete", value=MODE_BATCH_DEL,
+        self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="Batch Delete", value=MODE_BATCH_DEL,
                                         bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
         self.btn_batch.pack(side=tk.LEFT, padx=3)
         
@@ -92,6 +109,7 @@ class LayoutManager:
         self.app.canvas = tk.Canvas(self.app.center_panel, bg=c["bg_canvas"], highlightthickness=1, highlightbackground=c["border"])
         self.app.canvas.pack(fill=tk.BOTH, expand=True, pady=5)
 
+        # --- RIGHT PANEL ---
         self.app.right_panel = tk.Frame(self.root, width=320, bg=c["bg_panel"], padx=10, pady=10)
         self.app.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
         self.app.right_panel.pack_propagate(False)
@@ -122,6 +140,7 @@ class LayoutManager:
                                        padx=5, pady=5)
         self.app.txt_display.pack(fill=tk.BOTH, expand=True, pady=5)
 
+        # --- NAVIGATION PANEL ---
         self.nav_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
         self.nav_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
         
@@ -147,7 +166,7 @@ class LayoutManager:
         self.lbl_txt_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
 
         self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
-        self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
+        self.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
         self.app.ent_search.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
@@ -159,3 +178,6 @@ class LayoutManager:
         self.btn_theme.configure(bg=c["btn_nav"], fg=c["fg_label"], activebackground=c["btn_nav_active"])
         self.btn_prev_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
         self.btn_next_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
+        
+        self.btn_aug.configure(activeforeground="white")
+        self.btn_split.configure(activeforeground="white")
