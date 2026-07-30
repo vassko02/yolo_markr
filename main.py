@@ -128,8 +128,8 @@ class YoloAnnotatorApp:
 
     def update_ttk_styles(self):
         c = THEMES[self.current_theme]
-        self.style.configure("Dark.TRadiobutton", background=c["bg_main"], foreground=c["fg_label"], font=("Segoe UI", 10, "bold"), padding=6)
-        self.style.map("Dark.TRadiobutton", background=[("selected", c["btn_nav_active"]), ("active", c["btn_nav_active"])], foreground=[("selected", "#007bff"), ("active", c["fg_label"])])
+        self.style.configure("TRadiobutton", background=c["bg_main"], foreground=c["fg_label"], font=("Segoe UI", 10, "bold"), padding=6)
+        self.style.map("TRadiobutton", background=[("selected", c["btn_nav_active"]), ("active", c["btn_nav_active"])], foreground=[("selected", c["accent_blue"]), ("active", c["fg_label"])])
 
     def toggle_theme(self):
         self.current_theme = "light" if self.current_theme == "dark" else "dark"
@@ -221,11 +221,12 @@ class YoloAnnotatorApp:
             
             self.filtered_files.append(f)
 
+        c = THEMES[self.current_theme]
         for f in self.filtered_files:
             prefix = "✔ " if self.storage.is_image_labeled(f) else "  "
             self.file_listbox.insert(tk.END, prefix + f)
             if "✔" in prefix:
-                self.file_listbox.itemconfig(tk.END, fg="#28a745")
+                self.file_listbox.itemconfig(tk.END, fg=c["accent_green"])
 
         total = len(self.storage.image_files)
         self.lbl_file_count.config(text=f"Filtered: {len(self.filtered_files)} / Total: {total}")
@@ -426,7 +427,7 @@ class YoloAnnotatorApp:
 
         if self.draw_mode == MODE_BATCH_DEL:
             self.start_x, self.start_y = event.x, event.y
-            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="#dc3545", dash=(4, 4), width=2, tags="ann")
+            self.current_rect_id = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline=THEMES[self.current_theme]["accent_red"], dash=(4, 4), width=2, tags="ann")
             return
 
         if self.selected_ann_idx is not None:
@@ -649,10 +650,10 @@ class YoloAnnotatorApp:
         self.style.configure("Modern.Horizontal.TProgressbar", 
                              thickness=12, 
                              bordercolor=c["bg_panel"], 
-                             troughcolor="#e9ecef" if self.current_theme != "dark" else "#2d3748", 
-                             background="#28a745", 
-                             darkcolor="#28a745", 
-                             lightcolor="#28a745")
+                             troughcolor=c["bg_main"], 
+                             background=c["accent_green"], 
+                             darkcolor=c["accent_green"], 
+                             lightcolor=c["accent_green"]) 
 
         ttk.Checkbutton(aug_win, text="Augment Labels together with Images", variable=var_labels_too, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
         ttk.Checkbutton(aug_win, text="Horizontal Flip (Left-Right)", variable=var_flip_h, style="Aug.TCheckbutton").pack(anchor=tk.W, padx=30, pady=5)
@@ -726,7 +727,7 @@ class YoloAnnotatorApp:
             aug_win.destroy()
             self.refresh_file_list()
 
-        btn_generate = tk.Button(aug_win, text="🚀 Generate Augmented Dataset", command=run_processing, bg="#28a745", fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
+        btn_generate = tk.Button(aug_win, text="🚀 Generate Augmented Dataset", command=run_processing, bg=c["accent_green"], fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
         btn_generate.pack(fill=tk.X, padx=30, pady=15)
         
     def open_split_dialog(self):
@@ -859,7 +860,7 @@ class YoloAnnotatorApp:
                 btn_execute.config(state=tk.NORMAL)
                 lbl_split_status.config(text="Error occurred.")
 
-        btn_execute = tk.Button(split_win, text="🚀 Run Split & Export YAML", command=run_splitting, bg="#fd7e14", fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
+        btn_execute = tk.Button(split_win, text="🚀 Run Split & Export YAML", command=run_splitting, bg=c["accent_orange"], fg="white", font=("Segoe UI", 10, "bold"), bd=0, pady=10, cursor="hand2")
         btn_execute.pack(fill=tk.X, padx=30, pady=10) 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ class LayoutManager:
     def __init__(self, root, app):
         self.root = root
         self.app = app
+        self.style = ttk.Style()
 
     def build_ui(self):
         """Assembles the left, center, and right side panels with dynamic theme bindings."""
@@ -27,44 +28,45 @@ class LayoutManager:
         self.btn_theme.pack(fill=tk.X, pady=(0, 15))
 
         btn_folder = tk.Button(self.app.left_panel, text="📁 Select Folder", command=self.app.select_directory, 
-                               bg="#007bff", fg="white", font=("Segoe UI", 10, "bold"), 
-                               bd=0, cursor="hand2", activebackground="#0056b3", activeforeground="white",
+                               bg=c["accent_blue"], fg="white", font=("Segoe UI", 10, "bold"), 
+                               bd=0, cursor="hand2", activebackground=c["accent_blue_dark"], activeforeground="white",
                                pady=8, relief=tk.FLAT)
         btn_folder.pack(fill=tk.X, pady=(0, 10))
 
-        # Data Augmentation Button
         self.btn_aug = tk.Button(self.app.left_panel, text="✨ Data Augmentation", command=self.app.open_augmentation_dialog, 
-                                 bg="#6f42c1", fg="white", font=("Segoe UI", 10, "bold"), 
-                                 bd=0, cursor="hand2", activebackground="#5a32a3", activeforeground="white",
+                                 bg=c["accent_purple"], fg="white", font=("Segoe UI", 10, "bold"), 
+                                 bd=0, cursor="hand2", activebackground=c["accent_purple_dark"], activeforeground="white",
                                  pady=8, relief=tk.FLAT)
         self.btn_aug.pack(fill=tk.X, pady=(0, 10))
 
-        # NEW: Generate Dataset Split Button
         self.btn_split = tk.Button(self.app.left_panel, text="📦 Generate Dataset", command=self.app.open_split_dialog, 
-                                  bg="#fd7e14", fg="white", font=("Segoe UI", 10, "bold"), 
-                                  bd=0, cursor="hand2", activebackground="#d96406", activeforeground="white",
+                                  bg=c["accent_orange"], fg="white", font=("Segoe UI", 10, "bold"), 
+                                  bd=0, cursor="hand2", activebackground=c["accent_orange_dark"], activeforeground="white",
                                   pady=8, relief=tk.FLAT)
         self.btn_split.pack(fill=tk.X, pady=(0, 10))
 
-        filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"])
-        filter_frame.pack(fill=tk.X, pady=(0, 5))
+        self.filter_frame = tk.Frame(self.app.left_panel, bg=c["bg_panel"], highlightthickness=1, highlightbackground=c["border"], bd=0)
+        self.filter_frame.pack(fill=tk.X, pady=(0, 5))
         
-        tk.Label(filter_frame, text="Search:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"]).grid(row=0, column=0, sticky=tk.W)
-        self.app.ent_search = tk.Entry(filter_frame, bg=c["bg_main"], fg=c["fg_label"], bd=0, highlightthickness=1, highlightbackground=c["border"], font=("Segoe UI", 9))
+        self.lbl_search = tk.Label(self.filter_frame, text="Search:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"])
+        self.lbl_search.grid(row=0, column=0, sticky=tk.W)
+        self.app.ent_search = tk.Entry(self.filter_frame, bg=c["bg_main"], fg=c["fg_label"], bd=0, highlightthickness=1, highlightbackground=c["border"], font=("Segoe UI", 9))
         self.app.ent_search.grid(row=0, column=1, sticky=tk.EW, padx=(5, 0))
         
-        tk.Label(filter_frame, text="Status:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"]).grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.app.cmb_filter = ttk.Combobox(filter_frame, values=["All", "Labeled (✔)", "Unlabeled"], state="readonly", font=("Segoe UI", 9), width=15)
+        self.lbl_status = tk.Label(self.filter_frame, text="Status:", font=("Segoe UI", 8, "bold"), bg=c["bg_panel"], fg=c["fg_sub"])
+        self.lbl_status.grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.style.configure("Filter.TCombobox", fieldbackground=c["bg_main"], background=c["bg_main"], foreground=c["fg_label"], lightcolor=c["bg_main"], darkcolor=c["bg_main"], bordercolor=c["border"], arrowcolor=c["fg_label"], padding=4)
+        self.app.cmb_filter = ttk.Combobox(self.filter_frame, values=["All", "Labeled (✔)", "Unlabeled"], state="readonly", font=("Segoe UI", 9), width=15, style="Filter.TCombobox")
         self.app.cmb_filter.current(0)
         self.app.cmb_filter.grid(row=1, column=1, sticky=tk.EW, padx=(5, 0), pady=5)
         
-        filter_frame.columnconfigure(1, weight=1)
+        self.filter_frame.columnconfigure(1, weight=1)
         
         self.app.lbl_file_count = tk.Label(self.app.left_panel, text="Images: 0/0", bg=c["bg_panel"], fg=c["fg_sub"], font=("Segoe UI", 9, "bold"))
         self.app.lbl_file_count.pack(fill=tk.X, pady=2)
 
         self.app.file_listbox = tk.Listbox(self.app.left_panel, height=20, bg=c["bg_main"], fg=c["fg_label"], 
-                                           selectbackground="#007bff", selectforeground="white",
+                                           selectbackground=c["selection_bg"], selectforeground=c["selection_fg"],
                                            bd=0, highlightthickness=1, highlightbackground=c["border"],
                                            font=("Segoe UI", 9), activestyle="none")
         self.app.file_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -92,18 +94,18 @@ class LayoutManager:
         }
 
         self.btn_rect = tk.Radiobutton(self.app.mode_frame, text="Rectangle Mode", value=DRAW_MODE_RECT,
-                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#007bff", activebackground="#007bff", activeforeground="white", **toggle_style)
+                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_blue"], activebackground=c["accent_blue"], activeforeground="white", **toggle_style)
         self.btn_rect.pack(side=tk.LEFT, padx=3)
 
         self.btn_poly = tk.Radiobutton(self.app.mode_frame, text="Polygon Mode", value=DRAW_MODE_POLY,
-                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#28a745", activebackground="#28a745", activeforeground="white", **toggle_style)
+                                       bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_green"], activebackground=c["accent_green"], activeforeground="white", **toggle_style)
         self.btn_poly.pack(side=tk.LEFT, padx=3)
 
         self.btn_batch = tk.Radiobutton(self.app.mode_frame, text="Batch Delete", value=MODE_BATCH_DEL,
-                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor="#dc3545", activebackground="#dc3545", activeforeground="white", **toggle_style)
+                                        bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_red"], activebackground=c["accent_red"], activeforeground="white", **toggle_style)
         self.btn_batch.pack(side=tk.LEFT, padx=3)
         
-        self.lbl_hint = tk.Label(self.app.mode_frame, text="| Ctrl+Scroll: Zoom | Middle Mouse/Grip: Pan | Ctrl+C/V: Duplicate", bg=c["bg_main"], fg="#ffc107", font=("Segoe UI", 9, "italic"))
+        self.lbl_hint = tk.Label(self.app.mode_frame, text="| Ctrl+Scroll: Zoom | Middle Mouse/Grip: Pan | Ctrl+C/V: Duplicate", bg=c["bg_main"], fg=c["hint_text"], font=("Segoe UI", 9, "italic"))
         self.lbl_hint.pack(side=tk.LEFT, padx=10)
 
         self.app.canvas = tk.Canvas(self.app.center_panel, bg=c["bg_canvas"], highlightthickness=1, highlightbackground=c["border"])
@@ -118,18 +120,21 @@ class LayoutManager:
         self.lbl_labels_title.pack(anchor=tk.W, pady=(0, 5))
         
         self.app.class_listbox = tk.Listbox(self.app.right_panel, height=10, bg=c["bg_main"], fg=c["fg_label"], 
-                                            selectbackground="#28a745", selectforeground="white",
+                                            selectbackground=c["accent_green"], selectforeground=c["selection_fg"],
                                             bd=0, highlightthickness=1, highlightbackground=c["border"],
                                             font=("Consolas", 10), activestyle="none")
         self.app.class_listbox.pack(fill=tk.X, pady=5)
 
-        btn_frame = tk.Frame(self.app.right_panel, bg=c["bg_panel"])
-        btn_frame.pack(fill=tk.X, pady=5)
+        self.btn_frame = tk.Frame(self.app.right_panel, bg=c["bg_panel"])
+        self.btn_frame.pack(fill=tk.X, pady=5)
         
         button_style = {"font": ("Segoe UI", 8, "bold"), "fg": "white", "bd": 0, "cursor": "hand2", "pady": 4}
-        tk.Button(btn_frame, text="➕ Add", command=self.app.add_label, bg="#28a745", activebackground="#218838", **button_style).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        tk.Button(btn_frame, text="✏️ Edit", command=self.app.edit_label, bg="#ffc107", activebackground="#e0a800", **button_style).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
-        tk.Button(btn_frame, text="❌ Remove", command=self.app.remove_label, bg="#dc3545", activebackground="#c82333", **button_style).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        self.btn_add_label = tk.Button(self.btn_frame, text="➕ Add", command=self.app.add_label, bg=c["accent_green"], activebackground=c["accent_green_dark"], **button_style)
+        self.btn_add_label.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        self.btn_edit_label = tk.Button(self.btn_frame, text="✏️ Edit", command=self.app.edit_label, bg=c["accent_warning"], activebackground=c["accent_orange_dark"], **button_style)
+        self.btn_edit_label.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        self.btn_remove_label = tk.Button(self.btn_frame, text="❌ Remove", command=self.app.remove_label, bg=c["accent_red"], activebackground=c["accent_red_dark"], **button_style)
+        self.btn_remove_label.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
 
         self.lbl_txt_title = tk.Label(self.app.right_panel, text="Editable YOLO TXT Content", font=("Segoe UI", 10, "bold"), bg=c["bg_panel"], fg=c["fg_label"])
         self.lbl_txt_title.pack(anchor=tk.W, pady=(15, 5))
@@ -161,23 +166,31 @@ class LayoutManager:
         self.nav_frame.configure(bg=c["bg_panel"])
         
         self.app.lbl_file_count.configure(bg=c["bg_panel"], fg=c["fg_sub"])
-        self.lbl_hint.configure(bg=c["bg_main"])
+        self.lbl_hint.configure(bg=c["bg_main"], fg=c["hint_text"])
         self.lbl_labels_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
         self.lbl_txt_title.configure(bg=c["bg_panel"], fg=c["fg_label"])
 
-        self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
-        self.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
+        self.app.file_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"], selectbackground=c["selection_bg"], selectforeground=c["selection_fg"])
+        self.app.class_listbox.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"], selectbackground=c["accent_green"], selectforeground=c["selection_fg"])
         self.app.txt_display.configure(bg=c["bg_text"], fg=c["fg_text"], insertbackground=c["fg_label"], highlightbackground=c["border"])
         self.app.canvas.configure(bg=c["bg_canvas"], highlightbackground=c["border"])
         self.app.ent_search.configure(bg=c["bg_main"], fg=c["fg_label"], highlightbackground=c["border"])
+        self.filter_frame.configure(bg=c["bg_panel"], highlightbackground=c["border"])
+        self.lbl_search.configure(bg=c["bg_panel"], fg=c["fg_sub"])
+        self.lbl_status.configure(bg=c["bg_panel"], fg=c["fg_sub"])
+        self.btn_frame.configure(bg=c["bg_panel"])
+        self.style.configure("Filter.TCombobox", fieldbackground=c["bg_main"], background=c["bg_main"], foreground=c["fg_label"], lightcolor=c["bg_main"], darkcolor=c["bg_main"], bordercolor=c["border"], arrowcolor=c["fg_label"], padding=4)
+        self.app.cmb_filter.configure(style="Filter.TCombobox")
+        self.btn_rect.configure(bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_blue"], activebackground=c["accent_blue"], activeforeground="white")
+        self.btn_poly.configure(bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_green"], activebackground=c["accent_green"], activeforeground="white")
+        self.btn_batch.configure(bg=c["btn_nav"], fg=c["fg_label"], selectcolor=c["accent_red"], activebackground=c["accent_red"], activeforeground="white")
 
-        self.btn_rect.configure(bg=c["btn_nav"], fg=c["fg_label"])
-        self.btn_poly.configure(bg=c["btn_nav"], fg=c["fg_label"])
-        self.btn_batch.configure(bg=c["btn_nav"], fg=c["fg_label"])
-
-        self.btn_theme.configure(bg=c["btn_nav"], fg=c["fg_label"], activebackground=c["btn_nav_active"])
-        self.btn_prev_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
-        self.btn_next_widget.configure(bg=c["btn_nav"], activebackground=c["btn_nav_active"])
+        self.btn_theme.configure(bg=c["btn_nav"], fg=c["fg_label"], activebackground=c["btn_nav_active"], activeforeground=c["fg_label"])
+        self.btn_prev_widget.configure(bg=c["btn_nav"], fg="white", activebackground=c["btn_nav_active"], activeforeground="white")
+        self.btn_next_widget.configure(bg=c["btn_nav"], fg="white", activebackground=c["btn_nav_active"], activeforeground="white")
         
-        self.btn_aug.configure(activeforeground="white")
-        self.btn_split.configure(activeforeground="white")
+        self.btn_aug.configure(bg=c["accent_purple"], activebackground=c["accent_purple_dark"], fg="white", activeforeground="white")
+        self.btn_split.configure(bg=c["accent_orange"], activebackground=c["accent_orange_dark"], fg="white", activeforeground="white")
+        self.btn_add_label.configure(bg=c["accent_green"], activebackground=c["accent_green_dark"], fg="white")
+        self.btn_edit_label.configure(bg=c["accent_warning"], activebackground=c["accent_orange_dark"], fg="white")
+        self.btn_remove_label.configure(bg=c["accent_red"], activebackground=c["accent_red_dark"], fg="white")

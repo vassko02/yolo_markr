@@ -1,6 +1,6 @@
 """Module for handling zoomed and panned Tkinter Canvas drawing representations."""
 
-from config.config import COLOR_PALETTE, DRAW_MODE_RECT, DRAW_MODE_POLY
+from config.config import COLOR_PALETTE, DRAW_MODE_RECT, DRAW_MODE_POLY, THEMES
 import tkinter as tk
 
 class CanvasManager:
@@ -72,7 +72,11 @@ class CanvasManager:
             class_idx = ann["class_idx"]
             base_c = COLOR_PALETTE[class_idx % len(COLOR_PALETTE)]
             is_selected = (idx == selected_idx)
-            outline_color = "#FFC107" if is_selected else base_c
+            theme_colors = None
+            if app_instance and hasattr(app_instance, "current_theme"):
+                theme_colors = THEMES[app_instance.current_theme]
+
+            outline_color = theme_colors["accent_warning"] if is_selected and theme_colors else "#FFC107"
             dash_pattern = (4, 4) if is_selected else None
             width_spec = 3 if is_selected else 2
             
@@ -87,8 +91,10 @@ class CanvasManager:
                 self.canvas.create_text(x1, y1 - 10, text=display_text, fill=base_c, font=("Segoe UI", 9, "bold"), anchor=tk.W, tags="ann")
                 
                 if is_selected:
+                    handle_fill = theme_colors["bg_panel"] if theme_colors else "#FFFFFF"
+                    handle_outline = theme_colors["fg_label"] if theme_colors else "#000000"
                     for hx, hy in [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]:
-                        self.canvas.create_rectangle(hx - 4, hy - 4, hx + 4, hy + 4, fill="#FFFFFF", outline="#000", tags="ann")
+                        self.canvas.create_rectangle(hx - 4, hy - 4, hx + 4, hy + 4, fill=handle_fill, outline=handle_outline, tags="ann")
             else:
                 c_pts = []
                 for i in range(0, len(ann["points"]), 2):
