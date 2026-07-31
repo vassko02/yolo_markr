@@ -42,7 +42,6 @@ class DataAugmenter:
         if not os.path.exists(image_path):
             return 0
 
-        # Mappastruktúra definiálása: augmented_images/ és augmented_images/labels/
         out_img_dir = os.path.join(output_dir, "augmented_images")
         out_lbl_dir = os.path.join(out_img_dir, "labels")
         
@@ -54,19 +53,15 @@ class DataAugmenter:
         ext = os.path.splitext(image_path)[1]
         lbl_name = f"{base_name}.txt"
 
-        # --- 1. AZ EREDETI FÁJLOK MÁSOLÁSA (Baseline) ---
-        # Eredeti kép átmásolása
         dest_orig_img = os.path.join(out_img_dir, img_name)
         if not os.path.exists(dest_orig_img):
             shutil.copy(image_path, dest_orig_img)
             
-        # Eredeti label átmásolása (ha létezik)
         if label_path and os.path.exists(label_path):
             dest_orig_lbl = os.path.join(out_lbl_dir, lbl_name)
             if not os.path.exists(dest_orig_lbl):
                 shutil.copy(label_path, dest_orig_lbl)
 
-        # Baseline annotációk betöltése a generáláshoz
         orig_annotations = []
         augment_labels = options.get("labels_too", True)
         
@@ -80,118 +75,135 @@ class DataAugmenter:
         multiplier = options.get("multiplier", 1)
         generated_count = 0
 
-        # --- 2. AZ AUGMENTÁLT VARIÁCIÓK GENERÁLÁSA ---
+        has_bright = options.get("bright_var", 0.0) > 0.0
+        has_contrast = options.get("contrast_var", 0.0) > 0.0
+        has_flip_h = options.get("flip_horizontal", False)
+        has_flip_v = options.get("flip_vertical", False)
+        has_rotate = options.get("rotate_orthogonal", False)
+        
+        any_augmentation_enabled = has_bright or has_contrast or has_flip_h or has_flip_v or has_rotate
+
+        if not any_augmentation_enabled:
+            return 0
+
         for idx in range(multiplier):
-            img = Image.open(image_path)
-            annotations = [(cid, list(coords)) for cid, coords in orig_annotations]
-
             modified = False
-
-            # --- COMBINATORIAL PIPELINE ---
+            max_attempts = 10
+            attempt = 0
             
-            # 1. Random Brightness Change
-            b_var = options.get("bright_var", 0.0)
-            if b_var > 0.0:
-                factor = random.uniform(1.0 - b_var, 1.0 + b_var)
-                img = ImageEnhance.Brightness(img).enhance(factor)
-                modified = True
+            while not modified and attempt < max_attempts:
+                attempt += 1
+                img = Image.open(image_path)
+                current_w, current_h = img.size
+                annotations = [(cid, list(coords)) for cid, coords in orig_annotations]
 
-            # 2. Random Contrast Change
-            c_var = options.get("contrast_var", 0.0)
-            if c_var > 0.0:
-                factor = random.uniform(1.0 - c_var, 1.0 + c_var)
-                img = ImageEnhance.Contrast(img).enhance(factor)
-                modified = True
+                b_var = options.get("bright_var", 0.0)
+                if b_var > 0.0 and random.choice([True, False]):
+                    factor = random.uniform(1.0 - b_var, 1.0 + b_var)
+                    img = ImageEnhance.Brightness(img).enhance(factor)
+                    modified = True
 
-            # 3. Random Horizontal Flip
-            if options.get("flip_horizontal", False) and random.choice([True, False]):
-                img = img.transpose(Image.FLIP_LEFT_RIGHT)
-                if augment_labels:
-                    for ann in annotations:
-                        coords = ann[1]
-                        if len(coords) == 4:
-                            coords[0] = 1.0 - coords[0]
-                        else:
-                            for i in range(0, len(coords), 2):
-                                coords[i] = 1.0 - coords[i]
-                modified = True
+                c_var = options.get("contrast_var", 0.0)
+                if c_var > 0.0 and random.choice([True, False]):
+                    factor = random.uniform(1.0 - c_var, 1.0 + c_var)
+                    img = ImageEnhance.Contrast(img).enhance(factor)
+                    modified = True
 
-            # 4. Random Vertical Flip
-            if options.get("flip_vertical", False) and random.choice([True, False]):
-                img = img.transpose(Image.FLIP_TOP_BOTTOM)
-                if augment_labels:
-                    for ann in annotations:
-                        coords = ann[1]
-                        if len(coords) == 4:
-                            coords[1] = 1.0 - coords[1]
-                        else:
-                            for i in range(1, len(coords), 2):
-                                coords[i] = 1.0 - coords[i]
-                modified = True
-
-            # 5. Random Orthogonal Rotation (90, 180, 270 degrees)
-            if options.get("rotate_orthogonal", False) and random.choice([True, False]):
-                angle = random.choice([90, 180, 270])
-                if angle == 90:
-                    img = img.transpose(Image.ROTATE_90)
-                    if augment_labels:
-                        for ann in annotations:
-                            coords = ann[1]
-                            if len(coords) == 4:
-                                # YOLO format coordinates (x_center, y_center, width, height)
-                                x, y, w, h = coords
-                                coords[0] = 1.0 - y
-                                coords[1] = x
-                                coords[2] = h
-                                coords[3] = w
-                            else:
-                                # Polygon coordinates (x1, y1, x2, y2, ...)
-                                for i in range(0, len(coords), 2):
-                                    x_old, y_old = coords[i], coords[i+1]
-                                    coords[i] = 1.0 - y_old
-                                    coords[i+1] = x_old
-                elif angle == 180:
-                    img = img.transpose(Image.ROTATE_180)
+                if options.get("flip_horizontal", False) and random.choice([True, False]):
+                    img = img.transpose(Image.FLIP_LEFT_RIGHT)
                     if augment_labels:
                         for ann in annotations:
                             coords = ann[1]
                             if len(coords) == 4:
                                 coords[0] = 1.0 - coords[0]
-                                coords[1] = 1.0 - coords[1]
                             else:
                                 for i in range(0, len(coords), 2):
                                     coords[i] = 1.0 - coords[i]
-                                    coords[i+1] = 1.0 - coords[i+1]
-                elif angle == 270:
-                    img = img.transpose(Image.ROTATE_270)
+                    modified = True
+
+                if options.get("flip_vertical", False) and random.choice([True, False]):
+                    img = img.transpose(Image.FLIP_TOP_BOTTOM)
                     if augment_labels:
                         for ann in annotations:
                             coords = ann[1]
                             if len(coords) == 4:
-                                x, y, w, h = coords
-                                coords[0] = y
-                                coords[1] = 1.0 - x
-                                coords[2] = h
-                                coords[3] = w
+                                coords[1] = 1.0 - coords[1]
                             else:
-                                for i in range(0, len(coords), 2):
-                                    x_old, y_old = coords[i], coords[i+1]
-                                    coords[i] = y_old
-                                    coords[i+1] = 1.0 - x_old
-                modified = True
+                                for i in range(1, len(coords), 2):
+                                    coords[i] = 1.0 - coords[i]
+                    modified = True
 
-            if not modified and multiplier == 1:
+                # 5. Random Orthogonal Rotation (90, 180, 270 degrees)
+                if options.get("rotate_orthogonal", False) and random.choice([True, False]):
+                    angle = random.choice([90, 180, 270])
+                    w_orig, h_orig = img.size  # A kép aktuális szélessége és magassága a forgatás ELŐTT
+
+                    if angle == 90:
+                        img = img.transpose(Image.ROTATE_90)
+                        if augment_labels:
+                            for ann in annotations:
+                                coords = ann[1]
+                                if len(coords) == 4:
+                                    x, y, w, h = coords
+                                    # Helyes normalizált YOLO 90 fokos forgatás (PIL ROTATE_90-hez igazítva)
+                                    coords[0] = y
+                                    coords[1] = 1.0 - x
+                                    coords[2] = h * (h_orig / w_orig)
+                                    coords[3] = w * (w_orig / h_orig)
+                                else:
+                                    # Poligon / OBB koordináták helyes forgatása (óra járásával ellentétesen)
+                                    num_points = len(coords) // 2
+                                    for i in range(num_points):
+                                        x_old = coords[2*i]
+                                        y_old = coords[2*i + 1]
+                                        coords[2*i] = y_old
+                                        coords[2*i + 1] = 1.0 - x_old
+                        modified = True
+                        
+                    elif angle == 180:
+                        img = img.transpose(Image.ROTATE_180)
+                        if augment_labels:
+                            for ann in annotations:
+                                coords = ann[1]
+                                if len(coords) == 4:
+                                    coords[0] = 1.0 - coords[0]
+                                    coords[1] = 1.0 - coords[1]
+                                    # A szélesség és magasság nem változik, mert a tengelyek nem cserélődtek fel
+                                else:
+                                    for i in range(0, len(coords), 2):
+                                        coords[i] = 1.0 - coords[i]
+                                        coords[i+1] = 1.0 - coords[i+1]
+                        modified = True
+                        
+                    elif angle == 270:
+                        img = img.transpose(Image.ROTATE_270)
+                        if augment_labels:
+                            for ann in annotations:
+                                coords = ann[1]
+                                if len(coords) == 4:
+                                    x, y, w, h = coords
+                                    # Helyes normalizált YOLO 270 fokos forgatás (PIL ROTATE_270-hez igazítva)
+                                    coords[0] = 1.0 - y
+                                    coords[1] = x
+                                    coords[2] = h * (h_orig / w_orig)
+                                    coords[3] = w * (w_orig / h_orig)
+                                else:
+                                    # Poligon / OBB koordináták helyes forgatása (óra járásával megegyezően)
+                                    num_points = len(coords) // 2
+                                    for i in range(num_points):
+                                        x_old = coords[2*i]
+                                        y_old = coords[2*i + 1]
+                                        coords[2*i] = 1.0 - y_old
+                                        coords[2*i + 1] = x_old
+                        modified = True
+            if not modified:
                 continue
 
-            # --- UTÓTAGOK ÉS MENTÉS ---
             suffix = f"_aug_{idx + 1}"
             aug_img_name = f"{base_name}{suffix}{ext}"
             aug_lbl_name = f"{base_name}{suffix}.txt"
 
-            # Augmentált kép mentése
             img.save(os.path.join(out_img_dir, aug_img_name))
-            
-            # Augmentált label mentése
             aug_lbl_path = os.path.join(out_lbl_dir, aug_lbl_name)
 
             if augment_labels and annotations:
